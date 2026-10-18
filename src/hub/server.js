@@ -117,10 +117,12 @@ export async function startHub({
   }, 600_000);
   sweeper.unref();
 
+  // Behind one trusted proxy the last X-Forwarded-For hop is the one it added; earlier hops
+  // come from the client and can be forged to dodge rate limits.
   const clientIp = (req) => {
     if (trustProxy) {
       const fwd = req.headers['x-forwarded-for'];
-      if (fwd) return String(fwd).split(',')[0].trim();
+      if (fwd) return String(fwd).split(',').pop().trim();
     }
     return req.socket.remoteAddress || 'unknown';
   };

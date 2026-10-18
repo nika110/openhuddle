@@ -143,6 +143,24 @@ test('http: dashboard has CSP header, join page escapes', async () => {
   assert.equal(health.json.ok, true);
 });
 
+test('http: behind a proxy, forged X-Forwarded-For hops do not dodge the rate limit', async () => {
+  const proxied = await startHub({ port: 0, host: '127.0.0.1', trustProxy: true, log: () => {} });
+  try {
+    let status = 200;
+    for (let i = 0; i < 25 && status === 200; i++) {
+      const res = await fetch(`${proxied.url}/api/teams`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': `10.0.0.${i}, 203.0.113.7` },
+        body: JSON.stringify({ member_name: `p${i}` }),
+      });
+      status = res.status;
+    }
+    assert.equal(status, 429);
+  } finally {
+    await proxied.close();
+  }
+});
+
 test('http: create rate limit 429 after 20', async () => {
   // Earlier tests already used part of the budget from 127.0.0.1; keep creating until it trips.
   let status = 200;
