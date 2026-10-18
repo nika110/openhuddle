@@ -1,0 +1,33 @@
+name: uptime
+
+# Pings the public hub. A failed run means it is down or its certificate is broken; GitHub emails
+# the maintainer about failed scheduled runs.
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: public hub answers /health over HTTPS
+        run: |
+          for attempt in 1 2 3; do
+            if body=$(curl -fsS --max-time 15 https://92-5-77-35.sslip.io/health); then
+              echo "$body"
+              echo "$body" | grep -q '"ok":true' && exit 0
+            fi
+            sleep 20
+          done
+          echo "::error::public hub is not healthy"
+          exit 1
+      - name: certificate is valid for at least 7 more days
+        run: |
+          end=$(echo | openssl s_client -connect 92-5-77-35.sslip.io:443 -servername 92-5-77-35.sslip.io 2>/dev/null | openssl x509 -noout -enddate | cut -d= -f2)
+          echo "certificate expires: $end"
+          [ $(( $(date -d "$end" +%s) - $(date +%s) )) -gt $(( 7 * 86400 )) ]
