@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.0 — 2026-10-18
+
+- **Claude Code plugin.** Install with
+  `/plugin install openhuddle --marketplace nika110/openhuddle`, then `/openhuddle:create`,
+  `/openhuddle:join <link>` and `/openhuddle:status`. The plugin brings the team tools and hooks
+  itself; they stay quiet in projects that are not in a team.
+- `create`, `join` and `doctor --fix` notice the plugin and leave Claude Code's project settings
+  alone, so nothing runs twice. `doctor` reports the plugin.
+- The team tools pick up a team created mid-session (no restart), and the MCP server finds the
+  project through `CLAUDE_PROJECT_DIR` when started outside it.
+
 ## 0.2.0 — 2026-10-18
 
 - **Public hub.** `npx openhuddle create` now uses the free public hub

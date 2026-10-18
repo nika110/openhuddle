@@ -178,3 +178,25 @@ test('mcp: claim converts absolute paths and reports conflicts', async () => {
   assert.ok(text.includes('web/menu.tsx'));
   assert.ok(text.includes('bob'));
 });
+
+test('mcp: finds a team created after the server started', async () => {
+  const repo = makeRepo();
+  try {
+    const input = new PassThrough();
+    const output = new PassThrough();
+    const chunks = [];
+    output.on('data', (c) => chunks.push(c));
+    const done = runMcp({ input, output, project: null, dir: repo, heartbeatMs: 0, log: () => {} });
+    input.write(JSON.stringify(call(1, 'team_sync')) + '\n');
+    await delay(150);
+    projectFor(repo, hub.url, crew.owner); // what /openhuddle:create leaves behind mid-session
+    input.write(JSON.stringify(call(2, 'team_sync')) + '\n');
+    input.end();
+    await done;
+    const msgs = Buffer.concat(chunks).toString('utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
+    assert.match(byId(msgs, 1).result.content[0].text, /npx openhuddle join/);
+    assert.match(byId(msgs, 2).result.content[0].text, /pizza-app/);
+  } finally {
+    cleanup(repo);
+  }
+});

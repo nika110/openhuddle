@@ -1,6 +1,6 @@
 // The team tools an agent gets through MCP. Each returns plain text for the agent.
 import { Api, ApiError } from './api.js';
-import { loadState, saveState } from './config.js';
+import { findProject, loadState, saveState } from './config.js';
 import { gitInfo } from './git.js';
 import { frame, briefing, newsBlock, snapshotText, promptText, taskBoard, byId, clip, clock } from './format.js';
 import { latestNews } from './news.js';
@@ -160,9 +160,18 @@ export const TOOLS = [
   },
 ];
 
-export function makeContext(project, { timeoutMs = 8000 } = {}) {
-  if (!project) return { project: null, api: null };
-  return { project, api: new Api(project.config.hub, project.config.token, { timeoutMs }) };
+// dir: where to look again for a team when there is none yet (a team created mid-session).
+export function makeContext(project, { timeoutMs = 8000, dir = null } = {}) {
+  if (!project) return { project: null, api: null, dir, timeoutMs };
+  return { project, api: new Api(project.config.hub, project.config.token, { timeoutMs }), dir, timeoutMs };
+}
+
+export function resolveProject(ctx) {
+  if (ctx.project || !ctx.dir) return;
+  const project = findProject(ctx.dir);
+  if (!project) return;
+  ctx.project = project;
+  ctx.api = new Api(project.config.hub, project.config.token, { timeoutMs: ctx.timeoutMs ?? 8000 });
 }
 
 function need(args, ...keys) {
@@ -198,6 +207,7 @@ function friendly(e, hub) {
 
 export async function callTool(ctx, name, args = {}) {
   if (!TOOLS.some((t) => t.name === name)) throw new Error(`Unknown tool: ${name}`);
+  resolveProject(ctx);
   if (!ctx.project) return NOT_IN_TEAM;
   try {
     return await HANDLERS[name](ctx, args || {});

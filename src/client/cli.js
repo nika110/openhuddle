@@ -427,7 +427,8 @@ const COMMANDS = {
     }
     const w = wiringStatus(project.root, { home: ctx.home });
     mark(w.app, 'openhuddle installed in ~/.openhuddle/app', 'run `npx openhuddle doctor --fix`');
-    mark(w.claude_hooks, 'Claude Code hooks', 'run `npx openhuddle doctor --fix`');
+    if (w.plugin) mark(true, 'Claude Code: OpenHuddle plugin installed');
+    else mark(w.claude_hooks, 'Claude Code hooks', 'run `npx openhuddle doctor --fix`');
     if (w.codex !== null) mark(w.codex, 'Codex MCP entry', 'run `npx openhuddle doctor --fix`');
     if (w.cursor !== null) mark(w.cursor, 'Cursor MCP entry', 'run `npx openhuddle doctor --fix`');
     if (w.git_hook === null) ctx.out('  --  git post-commit hook: skipped (your existing hook is not a shell script, or hooks live in the repo)');
@@ -492,8 +493,10 @@ const COMMANDS = {
   },
 
   async mcp(ctx, flags) {
-    const project = findProject(flags.dir || ctx.cwd);
-    await runMcp({ project });
+    // A plugin-launched server may start outside the project; Claude Code tells us where it is.
+    const dir = flags.dir || ctx.env.CLAUDE_PROJECT_DIR || ctx.cwd;
+    const project = findProject(dir);
+    await runMcp({ project, dir });
     return 0;
   },
 

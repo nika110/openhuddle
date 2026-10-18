@@ -29,6 +29,18 @@ agents, so every one of them knows what the others are building, right now.
 
 <sub>40-second demo · [MP4 version](https://github.com/nika110/openhuddle/raw/main/docs/images/openhuddle-demo.mp4)</sub>
 
+**In Claude Code** (one-time install, then two commands):
+
+```
+/plugin install openhuddle --marketplace nika110/openhuddle
+/openhuddle:create                    # you, inside your project
+/openhuddle:join <invite-link>        # each friend
+```
+
+<sub>Older Claude Code: `/plugin marketplace add nika110/openhuddle`, then `/plugin install openhuddle@openhuddle`.</sub>
+
+**Anywhere else** (Codex, Cursor, or Claude Code without the plugin):
+
 ```bash
 npx openhuddle create                 # you, inside your project
 npx openhuddle join <invite-link>     # each friend

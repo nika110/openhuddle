@@ -1,19 +1,23 @@
 // Stdio MCP server: newline-delimited JSON-RPC 2.0. stdout carries protocol messages only.
 import { createInterface } from 'node:readline';
 import { VERSION } from '../shared/protocol.js';
-import { TOOLS, INSTRUCTIONS, callTool, makeContext } from './tools.js';
+import { TOOLS, INSTRUCTIONS, callTool, makeContext, resolveProject } from './tools.js';
 import { gitInfo } from './git.js';
 
 export const SUPPORTED_VERSIONS = ['2024-11-05', '2025-03-26', '2025-06-18', '2025-11-25'];
 const FALLBACK_VERSION = '2025-06-18';
 
-export async function runMcp({ input = process.stdin, output = process.stdout, project = null, heartbeatMs = 60_000, log = defaultLog } = {}) {
-  const ctx = makeContext(project);
+export async function runMcp({ input = process.stdin, output = process.stdout, project = null, dir = null, heartbeatMs = 60_000, log = defaultLog } = {}) {
+  const ctx = makeContext(project, { dir });
   const send = (msg) => output.write(JSON.stringify(msg) + '\n');
 
+  // Heartbeats keep this member "online"; a team created mid-session is picked up on the next beat.
   let timer = null;
-  if (ctx.api && heartbeatMs > 0) {
-    const beat = () => ctx.api.post('/api/heartbeat', { status: gitInfo(project.root) }).catch(() => {});
+  if (heartbeatMs > 0) {
+    const beat = () => {
+      resolveProject(ctx);
+      if (ctx.api) ctx.api.post('/api/heartbeat', { status: gitInfo(ctx.project.root) }).catch(() => {});
+    };
     beat();
     timer = setInterval(beat, heartbeatMs);
     timer.unref?.();

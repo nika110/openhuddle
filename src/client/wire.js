@@ -9,9 +9,9 @@ import { excludeFromGit } from './config.js';
 import { gitRoot, hooksDir, isTracked } from './git.js';
 
 const PKG_ROOT = fileURLToPath(new URL('../../', import.meta.url));
-const EDIT_MATCHER = 'Edit|Write|MultiEdit|NotebookEdit';
+export const EDIT_MATCHER = 'Edit|Write|MultiEdit|NotebookEdit';
 // Shell tools can write files too; the pre-edit hook only calls the hub when a command looks like a write.
-const GUARD_MATCHER = `${EDIT_MATCHER}|Bash|PowerShell`;
+export const GUARD_MATCHER = `${EDIT_MATCHER}|Bash|PowerShell`;
 const HOOKS = [
   ['SessionStart', null, 'session-start'],
   ['UserPromptSubmit', null, 'prompt'],
@@ -307,6 +307,14 @@ function writeRegistry(home, list) {
 
 // ---- detection, wiring, status ----
 
+// True when the OpenHuddle Claude Code plugin is installed (from any marketplace). The plugin
+// brings its own hooks and MCP server, so the project-level Claude wiring must stay out of the way.
+export function pluginInstalled(home = homedir()) {
+  const r = readJson(join(home, '.claude', 'plugins', 'installed_plugins.json'));
+  const plugins = r.value && typeof r.value === 'object' ? r.value.plugins : null;
+  return !!plugins && Object.keys(plugins).some((k) => k.startsWith('openhuddle@'));
+}
+
 export function detectTools({ home = homedir() } = {}) {
   return {
     claude: existsSync(join(home, '.claude')) || existsSync(join(home, '.claude.json')),
@@ -323,7 +331,17 @@ export function wireAll(root, { home = homedir(), tools, claudeCli, execPath = p
   const none = !t.claude && !t.codex && !t.cursor;
   if (none) lines.push('No AI tool detected, so openhuddle is set up for Claude Code. Installed Codex or Cursor later? Run `npx openhuddle doctor --fix`.');
 
-  if (t.claude || none) {
+  if ((t.claude || none) && pluginInstalled(home)) {
+    const file = claudeSettingsPath(root);
+    const cur = readJson(file);
+    if (cur.ok && cur.value) {
+      const next = unmergeClaudeSettings(cur.value);
+      if (Object.keys(next).length) writeJson(file, next);
+      else rmSync(file, { force: true });
+    }
+    if (claudeCliAllowed(claudeCli)) runClaude(['mcp', 'remove', '--scope', 'local', 'openhuddle'], root);
+    lines.push('Claude Code: handled by the OpenHuddle plugin (team tools, live news, edit guards)');
+  } else if (t.claude || none) {
     const file = claudeSettingsPath(root);
     const cur = readJson(file);
     if (!cur.ok) {
@@ -424,5 +442,5 @@ export function wiringStatus(root, { home = homedir() } = {}) {
   const git_hook =
     inWorkTree || foreignNonShellHook(file) ? null : existsSync(file) && readFileSync(file, 'utf8').includes('# >>> openhuddle');
   const app = existsSync(join(openhuddleHome(home), 'app', 'bin', 'openhuddle.js'));
-  return { claude_hooks, codex, cursor, git_hook, app };
+  return { claude_hooks, codex, cursor, git_hook, app, plugin: pluginInstalled(home) };
 }

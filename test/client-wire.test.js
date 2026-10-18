@@ -254,3 +254,28 @@ test('wire: codex block stays while another project still uses openhuddle', () =
     cleanup(a, b);
   }
 });
+
+test('wire: an installed OpenHuddle plugin replaces the local Claude Code wiring', () => {
+  const h = makeHome();
+  const repo = makeRepo();
+  const tools = { claude: true, codex: false, cursor: false };
+  const settings = join(repo, '.claude', 'settings.local.json');
+  try {
+    wire.wireAll(repo, { home: h, tools, claudeCli: false });
+    assert.ok(ourCommands(JSON.parse(readFileSync(settings, 'utf8'))).length > 0, 'CLI-only setup wires hooks');
+    assert.equal(wire.pluginInstalled(h), false);
+
+    mkdirSync(join(h, '.claude', 'plugins'), { recursive: true });
+    writeFileSync(
+      join(h, '.claude', 'plugins', 'installed_plugins.json'),
+      JSON.stringify({ version: 2, plugins: { 'openhuddle@openhuddle': [{ scope: 'user' }] } }),
+    );
+    assert.equal(wire.pluginInstalled(h), true);
+    const lines = wire.wireAll(repo, { home: h, tools, claudeCli: false });
+    assert.ok(lines.some((l) => /plugin/i.test(l)), lines.join('\n'));
+    assert.ok(!existsSync(settings) || ourCommands(JSON.parse(readFileSync(settings, 'utf8'))).length === 0, 'no duplicate hooks');
+    assert.equal(wire.wiringStatus(repo, { home: h }).plugin, true);
+  } finally {
+    cleanup(h, repo);
+  }
+});

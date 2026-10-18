@@ -1,0 +1,17 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "openhuddle",
+  "description": "OpenHuddle: multiplayer mode for AI coding agents.",
+  "owner": {
+    "name": "nika110",
+    "url": "https://github.com/nika110"
+  },
+  "plugins": [
+    {
+      "name": "openhuddle",
+      "description": "Your team's AI coding agents share live status, a co-written master prompt, a task board and file claims, and can ask each other questions.",
+      "source": "./",
+      "category": "productivity"
+    }
+  ]
+}
