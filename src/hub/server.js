@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { openDb } from './db.js';
 import { Hub } from './hub.js';
 import { HubError } from './errors.js';
-import { LIMITS, VERSION, ASK_WAIT_MAX_S } from '../shared/protocol.js';
+import { LIMITS, VERSION, ASK_WAIT_MAX_S, DEFAULT_HUB } from '../shared/protocol.js';
 
 const PAGES_DIR = fileURLToPath(new URL('./pages/', import.meta.url));
 
@@ -320,7 +320,11 @@ export async function startHub({
     if (path.startsWith('/api/')) return api(req, res, url);
     const head = req.method === 'HEAD';
     if (req.method !== 'GET' && !head) return notFound(res);
-    if (path === '/') return page(res, 'landing.html', { HUB_URL: hub.publicUrl }, head);
+    if (path === '/') {
+      // The public hub's page shows the plain command; a self-hosted hub's page names itself.
+      const createCmd = hub.publicUrl === DEFAULT_HUB ? 'npx openhuddle create' : `npx openhuddle create --hub ${hub.publicUrl}`;
+      return page(res, 'landing.html', { HUB_URL: hub.publicUrl, CREATE_CMD: createCmd }, head);
+    }
     if (path === '/robots.txt') {
       res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8' });
       return res.end('User-agent: *\nDisallow: /t/\nDisallow: /join/\n');

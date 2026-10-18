@@ -39,12 +39,12 @@ test('pages: join page escapes invite url', () => {
 
 test('pages: landing has quickstart commands', () => {
   const html = read('landing.html');
-  assert.ok(html.includes('npx openhuddle create'));
+  assert.ok(html.includes('{{CREATE_CMD}}'));
   assert.ok(html.includes('npx openhuddle join'));
   assert.ok(html.includes('npx openhuddle hub'));
   assert.ok(html.includes('https://github.com/nika110/openhuddle'));
   // The page is served by one particular hub, so its create commands point at that hub.
-  assert.equal(html.split('npx openhuddle create --hub {{HUB_URL}}').length - 1, 2);
+  assert.equal(html.split('{{CREATE_CMD}}').length - 1, 2);
 });
 
 test('pages: every page is CSP-clean (no inline script, style blocks or style attributes)', () => {

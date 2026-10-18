@@ -148,6 +148,12 @@ test('http: ask to offline member returns immediately with answer null', async (
   assert.ok(Date.now() - started < 2000);
 });
 
+test('http: a self-hosted hub landing page names itself in the create command', async () => {
+  const { text } = await call('GET', '/');
+  assert.ok(text.includes(`npx openhuddle create --hub ${hubUrl.replace('127.0.0.1', 'localhost')}`), 'self-hosted command');
+  assert.ok(!text.includes('{{'), 'no placeholders left');
+});
+
 test('http: dashboard has CSP header, join page escapes', async () => {
   const { a } = await crew();
   const dash = await call('GET', `/t/${a.team_id}`);

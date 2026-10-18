@@ -4,9 +4,9 @@ const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.ur
 
 export const VERSION = pkg.version;
 
-// The public hub `create` uses when no --hub / OPENHUDDLE_HUB is given. Empty until it is live;
-// invite links always carry their own hub, so `join` never needs this.
-export const DEFAULT_HUB = '';
+// The public hub `create` uses when no --hub / OPENHUDDLE_HUB is given. Invite links always
+// carry their own hub, so `join` never needs this. The address is tied to a reserved IP.
+export const DEFAULT_HUB = 'https://92-5-77-35.sslip.io';
 
 export const DEFAULTS = Object.freeze({
   assign_mode: 'hybrid',

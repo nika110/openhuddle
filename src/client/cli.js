@@ -113,15 +113,20 @@ function explain(e) {
   return e?.message || String(e);
 }
 
-const NO_HUB = `There is no public OpenHuddle hub yet, so one of you runs it:
+const NO_HUB = `No OpenHuddle hub is configured, so one of you runs it:
   1. On a machine your friends can reach:  npx openhuddle hub --public-url https://your-host
   2. In your project:                      npx openhuddle create --hub https://your-host
 (or set OPENHUDDLE_HUB once instead of passing --hub). Friends just use the invite link.`;
 
-function hubUrl(ctx, flags) {
-  const hub = String(flags.hub || ctx.env.OPENHUDDLE_HUB || DEFAULT_HUB).replace(/\/+$/, '');
+// --hub wins, then OPENHUDDLE_HUB, then the public hub.
+export function resolveHub(flagHub, envHub, defaultHub = DEFAULT_HUB) {
+  const hub = String(flagHub || envHub || defaultHub || '').replace(/\/+$/, '');
   if (!hub) throw new Error(NO_HUB);
   return hub;
+}
+
+function hubUrl(ctx, flags) {
+  return resolveHub(flags.hub, ctx.env.OPENHUDDLE_HUB);
 }
 
 function myName(ctx, flags, root) {

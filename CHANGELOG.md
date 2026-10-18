@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0 — 2026-10-18
+
+- **Public hub.** `npx openhuddle create` now uses the free public hub
+  (`https://92-5-77-35.sslip.io`) when no `--hub` / `OPENHUDDLE_HUB` is given. No setup.
+- The landing page a hub serves shows the plain `create` command on the public hub and the
+  `--hub <address>` form on self-hosted hubs.
+
 ## 0.1.1 — 2026-10-18
 
 - The README now renders on npm (absolute image links, PNG mascot).

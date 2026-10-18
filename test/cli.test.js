@@ -4,8 +4,8 @@ import { existsSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { main, parseInvite, browserCommand } from '../src/client/cli.js';
-import { VERSION } from '../src/shared/protocol.js';
+import { main, parseInvite, browserCommand, resolveHub } from '../src/client/cli.js';
+import { VERSION, DEFAULT_HUB } from '../src/shared/protocol.js';
 import { makeRepo, makeHome, tempDir, cleanup, git, safeEnv } from './helpers/client.js';
 import { startTestHub } from './helpers/hub.js';
 
@@ -84,17 +84,15 @@ test('cli: parseInvite', () => {
   assert.equal(parseInvite('nonsense'), null);
 });
 
-test('cli: create with no hub configured explains how to get one', async () => {
-  const repo = makeRepo();
-  try {
-    const io = capture(repo);
-    assert.equal(await main(['create'], io), 1);
-    assert.match(io.stderr, /npx openhuddle hub/);
-    assert.match(io.stderr, /--hub/);
-    assert.ok(!existsSync(join(repo, '.openhuddle')), 'nothing written');
-  } finally {
-    cleanup(repo);
-  }
+test('cli: resolveHub prefers --hub, then OPENHUDDLE_HUB, then the public hub', () => {
+  assert.equal(resolveHub('https://a.example/', 'https://b.example', 'https://c.example'), 'https://a.example');
+  assert.equal(resolveHub(undefined, 'https://b.example', 'https://c.example'), 'https://b.example');
+  assert.equal(resolveHub(undefined, undefined, 'https://c.example'), 'https://c.example');
+  assert.throws(() => resolveHub(undefined, undefined, ''), /npx openhuddle hub/);
+});
+
+test('cli: the public hub is the default', () => {
+  assert.match(DEFAULT_HUB, /^https:\/\//);
 });
 
 test('cli: create outside git repo exits 1 with hint', async () => {
