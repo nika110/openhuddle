@@ -1,5 +1,5 @@
-# A public vibecrew hub with automatic HTTPS.
-#   VIBECREW_DOMAIN=crew.example.com docker compose up -d --build
+# A public openhuddle hub with automatic HTTPS.
+#   OPENHUDDLE_DOMAIN=team.example.com docker compose up -d --build
 # The domain must point at this server, and ports 80 and 443 must be free and open.
 # No domain? <your-ip-with-dashes>.sslip.io works, e.g. 203-0-113-7.sslip.io.
 services:
@@ -7,8 +7,8 @@ services:
     build: ..
     restart: unless-stopped
     environment:
-      VIBECREW_PUBLIC_URL: https://${VIBECREW_DOMAIN:?set VIBECREW_DOMAIN}
-      VIBECREW_TRUST_PROXY: "1"
+      OPENHUDDLE_PUBLIC_URL: https://${OPENHUDDLE_DOMAIN:?set OPENHUDDLE_DOMAIN}
+      OPENHUDDLE_TRUST_PROXY: "1"
     volumes:
       - hub-data:/data
 
@@ -19,7 +19,7 @@ services:
       - "80:80"
       - "443:443"
     environment:
-      VIBECREW_DOMAIN: ${VIBECREW_DOMAIN}
+      OPENHUDDLE_DOMAIN: ${OPENHUDDLE_DOMAIN}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data

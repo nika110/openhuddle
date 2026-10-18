@@ -36,7 +36,7 @@ export async function runMcp({ input = process.stdin, output = process.stdout, p
         .then((res) => {
           if (res) send(res);
         })
-        .catch((e) => log(`vibecrew mcp: ${e?.stack || e}`));
+        .catch((e) => log(`openhuddle mcp: ${e?.stack || e}`));
       pending.add(p);
       p.finally(() => pending.delete(p));
     }
@@ -59,7 +59,7 @@ async function handle(ctx, m, log) {
       return reply({
         protocolVersion: SUPPORTED_VERSIONS.includes(asked) ? asked : FALLBACK_VERSION,
         capabilities: { tools: {} },
-        serverInfo: { name: 'vibecrew', version: VERSION },
+        serverInfo: { name: 'openhuddle', version: VERSION },
         instructions: INSTRUCTIONS,
       });
     }

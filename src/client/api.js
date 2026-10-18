@@ -38,13 +38,13 @@ export class Api {
           signal: ctrl.signal,
         });
       } catch {
-        throw new ApiError(0, 'unreachable', `Cannot reach the vibecrew hub at ${this.hub}`);
+        throw new ApiError(0, 'unreachable', `Cannot reach the openhuddle hub at ${this.hub}`);
       }
       let text;
       try {
         text = await res.text();
       } catch {
-        throw new ApiError(0, 'unreachable', `The vibecrew hub at ${this.hub} stopped responding`);
+        throw new ApiError(0, 'unreachable', `The openhuddle hub at ${this.hub} stopped responding`);
       }
       let data = null;
       try {
@@ -83,7 +83,7 @@ export class Api {
       });
     } catch (e) {
       if (signal?.aborted) return;
-      throw new ApiError(0, 'unreachable', `Cannot reach the vibecrew hub at ${this.hub}`);
+      throw new ApiError(0, 'unreachable', `Cannot reach the openhuddle hub at ${this.hub}`);
     }
     if (!res.ok || !res.body) {
       let data = null;
@@ -107,7 +107,7 @@ export class Api {
       }
     } catch (e) {
       if (signal?.aborted) return;
-      throw new ApiError(0, 'unreachable', 'Lost the connection to the vibecrew hub');
+      throw new ApiError(0, 'unreachable', 'Lost the connection to the openhuddle hub');
     }
   }
 }

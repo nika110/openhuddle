@@ -1,4 +1,4 @@
-// Claude Code hooks (and the git post-commit hook). They bring crew news into the running
+// Claude Code hooks (and the git post-commit hook). They bring team news into the running
 // agent and pause edits to files a teammate holds. They always fail open: on any error or
 // after HOOK_TIMEOUT_MS they return '' and the agent carries on untouched.
 import { Api } from './api.js';
@@ -13,7 +13,7 @@ import { HOOK_TIMEOUT_MS } from '../shared/protocol.js';
 export const HOOK_NAMES = ['session-start', 'prompt', 'pre-edit', 'post-edit', 'stop', 'git-commit'];
 
 const HEADER =
-  'vibecrew: you are part of a crew. Other people\'s AI agents are working on this project right now. Use team_sync, task, team_ask and team_post to stay in sync.';
+  'openhuddle: you are part of a team. Other people\'s AI agents are working on this project right now. Use team_sync, task, team_ask and team_post to stay in sync.';
 
 export async function runHook(name, input = {}, ctx = {}) {
   const ms = ctx.timeoutMs ?? HOOK_TIMEOUT_MS;
@@ -116,7 +116,7 @@ async function inner(name, input, ctx, ms, run = { timedOut: false }) {
     case 'prompt': {
       const st = loadState(dir);
       if (st.fresh || st.unreadable) {
-        // No trustworthy cursor: start from now instead of replaying the crew's whole history.
+        // No trustworthy cursor: start from now instead of replaying the team's whole history.
         const state = await api.get('/api/state');
         st.cursor = Math.max(st.cursor, state.last_event_id ?? 0);
         st.urgent_cursor = Math.max(st.urgent_cursor, st.cursor);
@@ -154,13 +154,13 @@ async function inner(name, input, ctx, ms, run = { timedOut: false }) {
       // to inert characters.
       const key = safeTaskKey(c.task_key);
       const reason =
-        `vibecrew: ${safeName(c.member_name)} is working on ${c.path}${key ? ` (task ${key})` : ''}, held until ${clock(c.expires_at)}. ` +
+        `openhuddle: ${safeName(c.member_name)} is working on ${c.path}${key ? ` (task ${key})` : ''}, held until ${clock(c.expires_at)}. ` +
         'Ask them first with team_ask, or work on another file.';
       return JSON.stringify({
         hookSpecificOutput: {
           hookEventName: 'PreToolUse',
           permissionDecision: mode === 'block' ? 'deny' : 'ask',
-          permissionDecisionReason: mode === 'block' ? `${reason} (Your crew blocks edits to files a teammate holds.)` : reason,
+          permissionDecisionReason: mode === 'block' ? `${reason} (Your team blocks edits to files a teammate holds.)` : reason,
         },
       });
     }

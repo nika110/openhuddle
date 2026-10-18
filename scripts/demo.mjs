@@ -1,4 +1,4 @@
-// Starts a local hub with a demo crew so you can look at the dashboard without friends.
+// Starts a local hub with a demo team so you can look at the dashboard without friends.
 //   node scripts/demo.mjs [port]
 import { startHub } from '../src/hub/server.js';
 
@@ -62,12 +62,12 @@ const q = await call('/api/ask', sam.token, { to: 'Ana', question: 'Does the log
 await call('/api/reply', ana.token, { ask_id: q.ask_id, answer: 'Yes: { user, token }. The type is User in src/types/user.ts.' });
 await call('/api/ask', leo.token, { to: 'Ana', question: 'Can checkout get the user id from the session cookie?', wait_s: 0 });
 
-console.log(`vibecrew demo hub on ${base}`);
+console.log(`openhuddle demo hub on ${base}`);
 console.log(`Dashboard as Ana: ${base}/t/${ana.team_id}#k=${ana.token}`);
 console.log(`Dashboard as Sam: ${base}/t/${ana.team_id}#k=${sam.token}`);
 console.log('Ctrl+C to stop.');
 
-// Keep the crew looking alive.
+// Keep the team looking alive.
 setInterval(() => {
   for (const t of [ana.token, sam.token, leo.token]) call('/api/heartbeat', t, {}).catch(() => {});
 }, 60_000);

@@ -113,7 +113,7 @@ export function plan(hub, member, { tasks: inputs, replace = false }) {
 
   const existing = new Map(listTasks(hub, teamId).map((t) => [t.key, t]));
   if (existing.size + inputs.length > LIMITS.tasks_per_team) {
-    throw conflict('too_many_tasks', `A crew can have at most ${LIMITS.tasks_per_team} tasks on its board.`);
+    throw conflict('too_many_tasks', `A team can have at most ${LIMITS.tasks_per_team} tasks on its board.`);
   }
   const used = new Set(existing.keys());
   let n = team.next_task;

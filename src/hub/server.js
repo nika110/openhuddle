@@ -118,7 +118,7 @@ export async function startHub({
     try {
       hub.sweep();
     } catch (err) {
-      log('vibecrew hub: sweep failed:', err);
+      log('openhuddle hub: sweep failed:', err);
     }
   }, 600_000);
   sweeper.unref();
@@ -138,7 +138,7 @@ export async function startHub({
     try {
       html = await readFile(join(PAGES_DIR, name), 'utf8');
     } catch {
-      html = '<!doctype html><meta charset="utf-8"><title>vibecrew</title><p>vibecrew hub is running.</p>';
+      html = '<!doctype html><meta charset="utf-8"><title>openhuddle</title><p>openhuddle hub is running.</p>';
     }
     for (const [key, value] of Object.entries(replacements)) html = html.split(`{{${key}}}`).join(escapeHtml(value));
     res.writeHead(200, { ...PAGE_HEADERS, 'content-type': TYPES['.html'], 'cache-control': 'no-store' });
@@ -331,7 +331,7 @@ export async function startHub({
         if (err.status === 413) res.setHeader('connection', 'close');
         return sendJson(res, err.status, { error: err.message, code: err.code });
       }
-      log(`vibecrew hub: ${req.method} ${req.url} failed:`, err);
+      log(`openhuddle hub: ${req.method} ${req.url} failed:`, err);
       sendJson(res, 500, { error: 'Something went wrong on the hub.', code: 'internal' });
     });
   });

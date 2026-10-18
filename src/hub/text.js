@@ -18,7 +18,7 @@ export function cleanName(value, max = 40) {
     .slice(0, max);
 }
 
-// Names of people and crews reach other people's agents, so they get a tight alphabet:
+// Names of people and teams reach other people's agents, so they get a tight alphabet:
 // letters (any script), digits, space and . _ ' - only.
 export function safeName(value, max = 40) {
   return String(value ?? '')

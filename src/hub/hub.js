@@ -215,7 +215,7 @@ export class Hub {
   }
 
   uniqueName(teamId, wanted) {
-    const base = safeName(wanted) || 'crewmate';
+    const base = safeName(wanted) || 'teammate';
     const taken = new Set(this.activeMembers(teamId).map((m) => m.name.toLowerCase()));
     if (!taken.has(base.toLowerCase())) return base;
     for (let i = 2; ; i++) {
@@ -259,12 +259,12 @@ export class Hub {
 
   createTeam({ team_name, member_name, tool, repo_url } = {}) {
     if (!String(member_name ?? '').trim()) throw badRequest('missing_name', 'member_name is required.');
-    const memberName = safeName(member_name) || 'crewmate';
+    const memberName = safeName(member_name) || 'teammate';
     return this.tx(() => {
       const at = this.now();
       const team = {
         id: newId('t'),
-        name: safeName(team_name, 60) || 'My crew',
+        name: safeName(team_name, 60) || 'My team',
         repo_url: cleanRepoUrl(repo_url),
         invite_secret: newSecret(),
         invite_expires_at: at + INVITE_TTL_MS,
@@ -308,7 +308,7 @@ export class Hub {
     const team = this.team(teamId);
     if (!sameSecret(secret, team.invite_secret) || this.now() > team.invite_expires_at) throw invalid;
     if (!String(member_name ?? '').trim()) throw badRequest('missing_name', 'member_name is required.');
-    const memberName = safeName(member_name) || 'crewmate';
+    const memberName = safeName(member_name) || 'teammate';
     return this.tx(() => {
       if (this.activeMembers(teamId).length >= LIMITS.members) {
         throw conflict('team_full', `A team can have at most ${LIMITS.members} members.`);
@@ -328,7 +328,7 @@ export class Hub {
   }
 
   auth(token) {
-    if (!token) throw new HubError(401, 'missing_token', 'Missing token. Run `npx vibecrew join <invite-link>` first.');
+    if (!token) throw new HubError(401, 'missing_token', 'Missing token. Run `npx openhuddle join <invite-link>` first.');
     const member = this.get('SELECT * FROM members WHERE token_hash = ? AND removed_at IS NULL', sha256(token));
     if (!member) throw new HubError(401, 'bad_token', 'This token is not valid (removed from the team?).');
     member.last_seen = this.now();
@@ -433,7 +433,7 @@ export class Hub {
         if (value === undefined || value === null) continue;
         if (TEAM_WIDE.includes(key) && member.role !== 'owner') {
           const owner = this.activeMembers(member.team_id).find((m) => m.role === 'owner');
-          throw forbidden('owner_only', `Only the crew owner${owner ? ` (${owner.name})` : ''} can change how the crew works.`);
+          throw forbidden('owner_only', `Only the team owner${owner ? ` (${owner.name})` : ''} can change how the team works.`);
         }
         if (key === 'assign_mode') {
           if (!ASSIGN_MODES.includes(value)) throw badRequest('bad_setting', `assign_mode must be one of ${ASSIGN_MODES.join(', ')}.`);

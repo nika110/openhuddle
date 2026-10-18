@@ -110,7 +110,7 @@
   color: var(--muted);
 }
 
-/* The lobby: a live-looking crew, the page's one loud element. */
+/* The lobby: a live-looking team, the page's one loud element. */
 
 .lobby {
   margin: 0;
@@ -464,13 +464,13 @@
   letter-spacing: -0.03em;
 }
 
-.join-crew {
+.join-team {
   display: flex;
   gap: 6px;
   margin-bottom: 24px;
 }
 
-.join-crew .dot {
+.join-team .dot {
   width: 18px;
   height: 18px;
 }

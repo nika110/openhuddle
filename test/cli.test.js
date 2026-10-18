@@ -9,7 +9,7 @@ import { VERSION } from '../src/shared/protocol.js';
 import { makeRepo, makeHome, tempDir, cleanup, git, safeEnv } from './helpers/client.js';
 import { startTestHub } from './helpers/hub.js';
 
-const BIN = fileURLToPath(new URL('../bin/vibecrew.js', import.meta.url));
+const BIN = fileURLToPath(new URL('../bin/openhuddle.js', import.meta.url));
 
 let hub;
 let home;
@@ -37,7 +37,7 @@ function runBin(args, { cwd, input = '', env }) {
 }
 
 function capture(cwd, extra = {}) {
-  const io = { cwd, home, stdout: '', stderr: '', env: { ...process.env, VIBECREW_NO_CLAUDE_CLI: '1' }, ...extra };
+  const io = { cwd, home, stdout: '', stderr: '', env: { ...process.env, OPENHUDDLE_NO_CLAUDE_CLI: '1' }, ...extra };
   io.out = (s) => {
     io.stdout += s;
   };
@@ -49,11 +49,11 @@ function capture(cwd, extra = {}) {
 
 before(async () => {
   home = makeHome();
-  process.env.VIBECREW_HOME = join(home, '.vibecrew');
-  process.env.VIBECREW_NO_CLAUDE_CLI = '1';
+  process.env.OPENHUDDLE_HOME = join(home, '.openhuddle');
+  process.env.OPENHUDDLE_NO_CLAUDE_CLI = '1';
   delete process.env.CODEX_HOME;
   hub = await startTestHub();
-  // A clonable "remote" for the crew repo.
+  // A clonable "remote" for the team repo.
   const seed = makeRepo();
   origin = join(tempDir('vc-origin-'), 'pizza.git');
   git(seed, 'clone', '-q', '--bare', seed, origin);
@@ -73,7 +73,7 @@ test('cli: --version and help', async () => {
   assert.equal(io.stdout.trim(), VERSION);
   const h = capture(repoA);
   assert.equal(await main([], h), 0);
-  assert.ok(h.stdout.includes('npx vibecrew join'));
+  assert.ok(h.stdout.includes('npx openhuddle join'));
   const bad = capture(repoA);
   assert.equal(await main(['frobnicate'], bad), 1);
 });
@@ -96,11 +96,11 @@ test('cli: create prints invite and writes config', async () => {
   const io = capture(repoA);
   const code = await main(['create', '--hub', hub.url, '--as', 'alice', '--name', 'pizza-app'], io);
   assert.equal(code, 0, io.stderr);
-  const m = io.stdout.match(/npx vibecrew join (\S+)/);
+  const m = io.stdout.match(/npx openhuddle join (\S+)/);
   assert.ok(m, io.stdout);
   invite = m[1];
   assert.match(invite, /^http:\/\/(localhost|127\.0\.0\.1):\d+\/join\/t[a-z2-7]+\./);
-  const cfg = JSON.parse(readFileSync(join(repoA, '.vibecrew', 'config.json'), 'utf8'));
+  const cfg = JSON.parse(readFileSync(join(repoA, '.openhuddle', 'config.json'), 'utf8'));
   assert.equal(cfg.member_name, 'alice');
   assert.equal(cfg.hub, hub.url);
   assert.ok(cfg.token.startsWith('vc_'));
@@ -109,11 +109,11 @@ test('cli: create prints invite and writes config', async () => {
   assert.equal(git(repoA, 'status', '--porcelain'), '');
   const again = capture(repoA);
   assert.equal(await main(['create', '--hub', hub.url], again), 1);
-  assert.ok(again.stderr.includes('already in the crew'));
+  assert.ok(again.stderr.includes('already in the team'));
 });
 
 test('cli: dash builds the URL locally and ignores a hostile dashboard_url', async () => {
-  const file = join(repoA, '.vibecrew', 'config.json');
+  const file = join(repoA, '.openhuddle', 'config.json');
   const original = readFileSync(file, 'utf8');
   const cfg = JSON.parse(original);
   assert.equal(cfg.dashboard_url, undefined, 'hub-provided URLs are not stored');
@@ -160,15 +160,15 @@ test('cli: join with invite writes config for second member', async () => {
   const io = capture(repoB);
   const code = await main(['join', invite, '--as', 'bob'], io);
   assert.equal(code, 0, io.stderr);
-  const cfg = JSON.parse(readFileSync(join(repoB, '.vibecrew', 'config.json'), 'utf8'));
+  const cfg = JSON.parse(readFileSync(join(repoB, '.openhuddle', 'config.json'), 'utf8'));
   assert.equal(cfg.member_name, 'bob');
   assert.equal(cfg.team_name, 'pizza-app');
-  assert.ok(io.stdout.includes('Joined the crew "pizza-app"'));
+  assert.ok(io.stdout.includes('Joined the team "pizza-app"'));
 });
 
-test('cli: join outside a repo clones the crew repo', async () => {
+test('cli: join outside a repo clones the team repo', async () => {
   const dir = tempDir();
-  // Point the crew's https URL at the local bare repo, only for this clone.
+  // Point the team's https URL at the local bare repo, only for this clone.
   process.env.GIT_CONFIG_COUNT = '1';
   process.env.GIT_CONFIG_KEY_0 = `url.${origin.replace(/\\/g, '/')}.insteadOf`;
   process.env.GIT_CONFIG_VALUE_0 = FAKE;
@@ -179,7 +179,7 @@ test('cli: join outside a repo clones the crew repo', async () => {
     assert.equal(code, 0, io.stderr);
     const cloned = join(dir, 'pizza');
     assert.ok(existsSync(join(cloned, 'README.md')));
-    const cfg = JSON.parse(readFileSync(join(cloned, '.vibecrew', 'config.json'), 'utf8'));
+    const cfg = JSON.parse(readFileSync(join(cloned, '.openhuddle', 'config.json'), 'utf8'));
     assert.equal(cfg.member_name, 'carol');
     assert.equal(await main(['leave'], capture(cloned)), 0);
   } finally {
@@ -196,7 +196,7 @@ test('cli: bad invite fails cleanly', async () => {
     const io = capture(dir);
     assert.equal(await main(['join', `${hub.url}/join/tzzzzzzzzzz.nope`], io), 1);
     assert.ok(io.stderr.length > 0);
-    assert.ok(!existsSync(join(dir, '.vibecrew')));
+    assert.ok(!existsSync(join(dir, '.openhuddle')));
   } finally {
     cleanup(dir);
   }
@@ -210,7 +210,7 @@ test('cli: status shows both members', async () => {
   const outside = tempDir();
   const none = capture(outside);
   assert.equal(await main(['status'], none), 1);
-  assert.ok(none.stderr.includes('npx vibecrew join'));
+  assert.ok(none.stderr.includes('npx openhuddle join'));
   cleanup(outside);
 });
 
@@ -224,9 +224,9 @@ test('cli: invite and doctor', async () => {
   assert.ok(doc.stdout.includes('membership is valid'), doc.stdout);
   assert.equal(code, 0, doc.stdout);
   // Projects set up by older versions get the token-guarding .gitignore on --fix.
-  rmSync(join(repoA, '.vibecrew', '.gitignore'), { force: true });
+  rmSync(join(repoA, '.openhuddle', '.gitignore'), { force: true });
   assert.equal(await main(['doctor', '--fix'], capture(repoA)), 0);
-  assert.equal(readFileSync(join(repoA, '.vibecrew', '.gitignore'), 'utf8').trim(), '*');
+  assert.equal(readFileSync(join(repoA, '.openhuddle', '.gitignore'), 'utf8').trim(), '*');
 });
 
 test('cli: hook exits 0 on garbage stdin', async () => {
@@ -245,7 +245,7 @@ test('cli: real process hook exits fast with empty stdin', async () => {
   assert.ok(Date.now() - t0 < 5000, `took ${Date.now() - t0}ms`);
 });
 
-test('cli: real process hook in a crew repo prints hook JSON', async () => {
+test('cli: real process hook in a team repo prints hook JSON', async () => {
   const r = await runBin(['hook', 'session-start'], {
     cwd: repoB,
     input: JSON.stringify({ cwd: repoB, hook_event_name: 'SessionStart' }),
@@ -270,7 +270,7 @@ test('cli: real mcp server answers over stdio and exits when stdin closes', asyn
   });
   assert.equal(r.status, 0, r.stderr);
   const lines = r.stdout.trim().split('\n').map((l) => JSON.parse(l));
-  assert.equal(lines.find((l) => l.id === 1).result.serverInfo.name, 'vibecrew');
+  assert.equal(lines.find((l) => l.id === 1).result.serverInfo.name, 'openhuddle');
   const sync = lines.find((l) => l.id === 2).result;
   assert.equal(sync.isError, false, sync.content[0].text);
   assert.ok(sync.content[0].text.includes('alice'));
@@ -299,7 +299,7 @@ test('cli: remove is owner only', async () => {
 test('cli: leave unwires and removes config', async () => {
   const io = capture(repoB);
   assert.equal(await main(['leave'], io), 0, io.stderr);
-  assert.ok(!existsSync(join(repoB, '.vibecrew')));
+  assert.ok(!existsSync(join(repoB, '.openhuddle')));
   assert.ok(!existsSync(join(repoB, '.claude', 'settings.local.json')));
   assert.ok(!existsSync(join(repoB, '.git', 'hooks', 'post-commit')));
   const st = capture(repoA);

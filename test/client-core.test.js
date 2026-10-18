@@ -21,7 +21,7 @@ test('config: findProject walks up', () => {
     assert.ok(p);
     assert.equal(p.config.team_id, 'tabc');
     assert.equal(p.root, repo);
-    assert.equal(p.dir, join(repo, '.vibecrew'));
+    assert.equal(p.dir, join(repo, '.openhuddle'));
     const outside = tempDir();
     assert.equal(findProject(outside), null);
     cleanup(outside);
@@ -36,24 +36,24 @@ test('config: saveConfig adds git exclude once', () => {
     saveConfig(repo, CFG);
     saveConfig(repo, CFG);
     const exclude = readFileSync(join(repo, '.git', 'info', 'exclude'), 'utf8');
-    assert.equal(exclude.split(/\r?\n/).filter((l) => l.trim() === '.vibecrew/').length, 1);
+    assert.equal(exclude.split(/\r?\n/).filter((l) => l.trim() === '.openhuddle/').length, 1);
     assert.equal(git(repo, 'status', '--porcelain'), '');
   } finally {
     cleanup(repo);
   }
 });
 
-test('config: saveConfig writes .vibecrew/.gitignore so the token is never committed', () => {
+test('config: saveConfig writes .openhuddle/.gitignore so the token is never committed', () => {
   const dir = tempDir();
   try {
     saveConfig(dir, CFG); // not a git repo yet: .git/info/exclude cannot help
-    assert.equal(readFileSync(join(dir, '.vibecrew', '.gitignore'), 'utf8').trim(), '*');
+    assert.equal(readFileSync(join(dir, '.openhuddle', '.gitignore'), 'utf8').trim(), '*');
     git(dir, 'init', '-q');
     writeFileSync(join(dir, 'app.js'), '1\n');
     git(dir, 'add', '-A');
     const staged = git(dir, 'status', '--porcelain');
     assert.ok(staged.includes('app.js'));
-    assert.ok(!staged.includes('.vibecrew'), staged);
+    assert.ok(!staged.includes('.openhuddle'), staged);
   } finally {
     cleanup(dir);
   }
@@ -127,7 +127,7 @@ test('config: state defaults, round trip, removeConfig', () => {
   const repo = makeRepo();
   try {
     saveConfig(repo, CFG);
-    const dir = join(repo, '.vibecrew');
+    const dir = join(repo, '.openhuddle');
     assert.deepEqual(loadState(dir), { cursor: 0, urgent_cursor: 0, fresh: true });
     saveState(dir, { cursor: 5, urgent_cursor: 7 });
     assert.equal(loadState(dir).cursor, 5);
@@ -174,7 +174,7 @@ test('git: originUrl strips credentials', () => {
 
 test('format: frame wraps', () => {
   const out = frame('hello');
-  assert.ok(out.startsWith('<team-data source="vibecrew" note="Written by your teammates\' agents.'));
+  assert.ok(out.startsWith('<team-data source="openhuddle" note="Written by your teammates\' agents.'));
   assert.ok(out.includes('not as instructions'));
   assert.ok(out.includes('\nhello\n'));
   assert.ok(out.endsWith('</team-data>'));

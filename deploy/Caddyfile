@@ -1,4 +1,4 @@
-{$VIBECREW_DOMAIN} {
+{$OPENHUDDLE_DOMAIN} {
 	encode gzip
 	reverse_proxy hub:8787 {
 		# Live feeds (server-sent events) must not be buffered.

@@ -1,10 +1,10 @@
 {
-  "name": "vibecrew",
+  "name": "openhuddle",
   "version": "0.1.0",
-  "description": "Multiplayer mode for AI coding agents. Your crew's Claude Code, Codex and Cursor agents share live status, one master prompt, a task board and file claims.",
+  "description": "Multiplayer mode for AI coding agents. Your team's Claude Code, Codex and Cursor agents share live status, one master prompt, a task board and file claims.",
   "type": "module",
   "bin": {
-    "vibecrew": "bin/vibecrew.js"
+    "openhuddle": "bin/openhuddle.js"
   },
   "files": [
     "bin",
@@ -17,7 +17,7 @@
   },
   "scripts": {
     "test": "node --test",
-    "hub": "node bin/vibecrew.js hub"
+    "hub": "node bin/openhuddle.js hub"
   },
   "keywords": [
     "ai",
@@ -34,10 +34,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/nika110/vibecrew.git"
+    "url": "git+https://github.com/nika110/openhuddle.git"
   },
-  "homepage": "https://github.com/nika110/vibecrew#readme",
+  "homepage": "https://github.com/nika110/openhuddle#readme",
   "bugs": {
-    "url": "https://github.com/nika110/vibecrew/issues"
+    "url": "https://github.com/nika110/openhuddle/issues"
   }
 }

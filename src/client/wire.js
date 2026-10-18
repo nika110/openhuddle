@@ -1,4 +1,4 @@
-// Connects vibecrew to the AI tools on this machine. Every merge is idempotent and leaves
+// Connects openhuddle to the AI tools on this machine. Every merge is idempotent and leaves
 // other people's entries alone; unwiring removes only what we added.
 import { existsSync, readFileSync, writeFileSync, mkdirSync, rmSync, cpSync, renameSync, chmodSync, unlinkSync } from 'node:fs';
 import { join, resolve, dirname, relative, isAbsolute } from 'node:path';
@@ -19,14 +19,14 @@ const HOOKS = [
   ['PostToolUse', EDIT_MATCHER, 'post-edit'],
   ['Stop', null, 'stop'],
 ];
-const GIT_BEGIN = '# >>> vibecrew (tells your crew about commits)';
-const GIT_END = '# <<< vibecrew';
+const GIT_BEGIN = '# >>> openhuddle (tells your team about commits)';
+const GIT_END = '# <<< openhuddle';
 
 const fwd = (p) => String(p).replace(/\\/g, '/');
 const samePath = (a, b) => resolve(a).toLowerCase() === resolve(b).toLowerCase();
 
-export function vibecrewHome(home = homedir()) {
-  return process.env.VIBECREW_HOME || join(home, '.vibecrew');
+export function openhuddleHome(home = homedir()) {
+  return process.env.OPENHUDDLE_HOME || join(home, '.openhuddle');
 }
 
 function codexDir(home) {
@@ -34,11 +34,11 @@ function codexDir(home) {
   return join(home, '.codex');
 }
 
-// Copies the running package to ~/.vibecrew/app so hooks and the MCP server keep working
+// Copies the running package to ~/.openhuddle/app so hooks and the MCP server keep working
 // after npx cleans its cache. Returns the absolute path of the installed bin script.
 export function installApp({ home = homedir() } = {}) {
-  const dest = join(vibecrewHome(home), 'app');
-  const bin = join(dest, 'bin', 'vibecrew.js');
+  const dest = join(openhuddleHome(home), 'app');
+  const bin = join(dest, 'bin', 'openhuddle.js');
   if (samePath(PKG_ROOT, dest)) return bin;
   const tmp = `${dest}.new-${process.pid}`;
   rmSync(tmp, { recursive: true, force: true });
@@ -67,7 +67,7 @@ function mcpServer(appBin, { execPath = process.execPath, dir } = {}) {
 
 // ---- Claude Code settings (.claude/settings.local.json) ----
 
-const isOurHook = (h) => typeof h?.command === 'string' && /vibecrew/i.test(h.command) && / hook /.test(h.command);
+const isOurHook = (h) => typeof h?.command === 'string' && /openhuddle/i.test(h.command) && / hook /.test(h.command);
 
 function stripOurHooks(hooks) {
   const out = {};
@@ -137,7 +137,7 @@ function quoteArg(a) {
 
 function claudeCliAllowed(opt) {
   if (opt === false) return false;
-  return process.env.VIBECREW_NO_CLAUDE_CLI !== '1';
+  return process.env.OPENHUDDLE_NO_CLAUDE_CLI !== '1';
 }
 
 function runClaude(args, cwd) {
@@ -150,7 +150,7 @@ function runClaude(args, cwd) {
 
 function claudeMcpArgs(appBin, root, execPath) {
   const s = mcpServer(appBin, { execPath, dir: root });
-  return ['mcp', 'add', '--scope', 'local', 'vibecrew', '--', s.command, ...s.args];
+  return ['mcp', 'add', '--scope', 'local', 'openhuddle', '--', s.command, ...s.args];
 }
 
 export function claudeMcpCommand(appBin, root, { execPath = process.execPath } = {}) {
@@ -159,7 +159,7 @@ export function claudeMcpCommand(appBin, root, { execPath = process.execPath } =
 
 // ---- Codex (~/.codex/config.toml) ----
 
-const CODEX_HEADER = /^\s*\[\s*mcp_servers\s*\.\s*(?:vibecrew|"vibecrew")\s*(?:\.[^\]]*)?\]\s*(?:#.*)?$/;
+const CODEX_HEADER = /^\s*\[\s*mcp_servers\s*\.\s*(?:openhuddle|"openhuddle")\s*(?:\.[^\]]*)?\]\s*(?:#.*)?$/;
 const ANY_HEADER = /^\s*\[/;
 
 function stripCodex(text) {
@@ -184,7 +184,7 @@ function tidy(lines) {
 
 export function mergeCodexToml(text, { command, args }) {
   const { kept, at } = stripCodex(text);
-  const block = ['[mcp_servers.vibecrew]', `command = ${JSON.stringify(command)}`, `args = ${JSON.stringify(args)}`, ''];
+  const block = ['[mcp_servers.openhuddle]', `command = ${JSON.stringify(command)}`, `args = ${JSON.stringify(args)}`, ''];
   if (at === -1) {
     while (kept.length && kept[kept.length - 1] === '') kept.pop();
     if (kept.length) kept.push('');
@@ -205,14 +205,14 @@ export function unmergeCodexToml(text) {
 
 export function mergeCursorJson(obj, server) {
   const base = obj && typeof obj === 'object' ? structuredClone(obj) : {};
-  base.mcpServers = { ...(base.mcpServers || {}), vibecrew: server };
+  base.mcpServers = { ...(base.mcpServers || {}), openhuddle: server };
   return base;
 }
 
 export function unmergeCursorJson(obj) {
   const base = obj && typeof obj === 'object' ? structuredClone(obj) : {};
   if (base.mcpServers) {
-    delete base.mcpServers.vibecrew;
+    delete base.mcpServers.openhuddle;
     if (!Object.keys(base.mcpServers).length) delete base.mcpServers;
   }
   return base;
@@ -225,7 +225,7 @@ function stripGitBlock(text) {
   const out = [];
   let skip = false;
   for (const line of lines) {
-    if (line.startsWith('# >>> vibecrew')) {
+    if (line.startsWith('# >>> openhuddle')) {
       skip = true;
       continue;
     }
@@ -253,7 +253,7 @@ const NOT_SHELL = 'an existing post-commit hook is not a shell script; left it a
 function foreignNonShellHook(file) {
   if (!existsSync(file)) return false;
   const text = readFileSync(file, 'utf8');
-  return !text.includes('# >>> vibecrew') && !SHELL_SHEBANG.test(text.split(/\r?\n/)[0]);
+  return !text.includes('# >>> openhuddle') && !SHELL_SHEBANG.test(text.split(/\r?\n/)[0]);
 }
 
 export function installGitHook(root, cmd) {
@@ -283,7 +283,7 @@ export function removeGitHook(root) {
   const { file } = postCommitPath(root);
   if (!existsSync(file)) return false;
   const current = readFileSync(file, 'utf8');
-  if (!current.includes('# >>> vibecrew')) return false;
+  if (!current.includes('# >>> openhuddle')) return false;
   const rest = stripGitBlock(current);
   if (!rest.replace(/^#!.*$/m, '').trim()) unlinkSync(file);
   else writeFileSync(file, rest);
@@ -293,7 +293,7 @@ export function removeGitHook(root) {
 // ---- project registry (so a global Codex entry survives while any project uses it) ----
 
 function registryFile(home) {
-  return join(vibecrewHome(home), 'projects.json');
+  return join(openhuddleHome(home), 'projects.json');
 }
 
 function readRegistry(home) {
@@ -321,24 +321,24 @@ export function wireAll(root, { home = homedir(), tools, claudeCli, execPath = p
   const cmd = appCommand(appBin, { execPath });
   const t = tools || detectTools({ home });
   const none = !t.claude && !t.codex && !t.cursor;
-  if (none) lines.push('No AI tool detected, so vibecrew is set up for Claude Code. Installed Codex or Cursor later? Run `npx vibecrew doctor --fix`.');
+  if (none) lines.push('No AI tool detected, so openhuddle is set up for Claude Code. Installed Codex or Cursor later? Run `npx openhuddle doctor --fix`.');
 
   if (t.claude || none) {
     const file = claudeSettingsPath(root);
     const cur = readJson(file);
     if (!cur.ok) {
-      lines.push('Claude Code: .claude/settings.local.json is not valid JSON, so hooks were not added. Fix the file and run `npx vibecrew doctor --fix`.');
+      lines.push('Claude Code: .claude/settings.local.json is not valid JSON, so hooks were not added. Fix the file and run `npx openhuddle doctor --fix`.');
     } else {
       writeJson(file, mergeClaudeSettings(cur.value, cmd));
       excludeFromGit(root, '.claude/settings.local.json');
-      lines.push('Claude Code: live crew news and edit guards (hooks in .claude/settings.local.json)');
+      lines.push('Claude Code: live team news and edit guards (hooks in .claude/settings.local.json)');
     }
     if (claudeCliAllowed(claudeCli)) {
-      runClaude(['mcp', 'remove', '--scope', 'local', 'vibecrew'], root);
-      if (runClaude(claudeMcpArgs(appBin, root, execPath), root)) lines.push('Claude Code: crew tools added (MCP server "vibecrew")');
-      else lines.push(`Claude Code: could not add the crew tools automatically. Run this once here:\n    ${claudeMcpCommand(appBin, root, { execPath })}`);
+      runClaude(['mcp', 'remove', '--scope', 'local', 'openhuddle'], root);
+      if (runClaude(claudeMcpArgs(appBin, root, execPath), root)) lines.push('Claude Code: team tools added (MCP server "openhuddle")');
+      else lines.push(`Claude Code: could not add the team tools automatically. Run this once here:\n    ${claudeMcpCommand(appBin, root, { execPath })}`);
     } else {
-      lines.push(`Claude Code: to add the crew tools, run this once here:\n    ${claudeMcpCommand(appBin, root, { execPath })}`);
+      lines.push(`Claude Code: to add the team tools, run this once here:\n    ${claudeMcpCommand(appBin, root, { execPath })}`);
     }
   }
 
@@ -348,26 +348,26 @@ export function wireAll(root, { home = homedir(), tools, claudeCli, execPath = p
     const text = existsSync(file) ? readFileSync(file, 'utf8') : '';
     mkdirSync(dir, { recursive: true });
     writeFileSync(file, mergeCodexToml(text, mcpServer(appBin, { execPath })));
-    lines.push('Codex: crew tools added (MCP server in ~/.codex/config.toml)');
+    lines.push('Codex: team tools added (MCP server in ~/.codex/config.toml)');
   }
 
   if (t.cursor) {
     const file = join(root, '.cursor', 'mcp.json');
     const cur = readJson(file);
     if (existsSync(file) && isTracked(root, '.cursor/mcp.json')) {
-      lines.push('Cursor: .cursor/mcp.json is committed in this repo, so it was left alone. Add vibecrew in Cursor > Settings > MCP: ' +
+      lines.push('Cursor: .cursor/mcp.json is committed in this repo, so it was left alone. Add OpenHuddle in Cursor > Settings > MCP: ' +
         `command ${JSON.stringify(fwd(execPath))}, args ${JSON.stringify(mcpServer(appBin, { execPath, dir: root }).args)}`);
     } else if (!cur.ok) {
       lines.push('Cursor: .cursor/mcp.json is not valid JSON, so it was left alone.');
     } else {
       writeJson(file, mergeCursorJson(cur.value, mcpServer(appBin, { execPath, dir: root })));
       excludeFromGit(root, '.cursor/mcp.json');
-      lines.push('Cursor: crew tools added (.cursor/mcp.json)');
+      lines.push('Cursor: team tools added (.cursor/mcp.json)');
     }
   }
 
   const gh = installGitHook(root, cmd);
-  lines.push(gh.installed ? 'Git: commits are shared with the crew (post-commit hook)' : `Git: ${gh.reason}`);
+  lines.push(gh.installed ? 'Git: commits are shared with the team (post-commit hook)' : `Git: ${gh.reason}`);
 
   const reg = readRegistry(home).filter((p) => !samePath(p, root));
   reg.push(resolve(root));
@@ -385,7 +385,7 @@ export function unwireAll(root, { home = homedir(), claudeCli } = {}) {
     else rmSync(file, { force: true });
     lines.push('Claude Code: hooks removed');
   }
-  if (claudeCliAllowed(claudeCli) && runClaude(['mcp', 'remove', '--scope', 'local', 'vibecrew'], root)) lines.push('Claude Code: crew tools removed');
+  if (claudeCliAllowed(claudeCli) && runClaude(['mcp', 'remove', '--scope', 'local', 'openhuddle'], root)) lines.push('Claude Code: team tools removed');
 
   const reg = readRegistry(home).filter((p) => !samePath(p, root));
   writeRegistry(home, reg);
@@ -394,17 +394,17 @@ export function unwireAll(root, { home = homedir(), claudeCli } = {}) {
     const text = readFileSync(codexFile, 'utf8');
     if (text.split(/\r?\n/).some((l) => CODEX_HEADER.test(l))) {
       writeFileSync(codexFile, unmergeCodexToml(text));
-      lines.push('Codex: crew tools removed');
+      lines.push('Codex: team tools removed');
     }
   }
 
   const cursorFile = join(root, '.cursor', 'mcp.json');
   const cj = readJson(cursorFile);
-  if (cj.ok && cj.value && cj.value.mcpServers && cj.value.mcpServers.vibecrew) {
+  if (cj.ok && cj.value && cj.value.mcpServers && cj.value.mcpServers.openhuddle) {
     const next = unmergeCursorJson(cj.value);
     if (Object.keys(next).length) writeJson(cursorFile, next);
     else rmSync(cursorFile, { force: true });
-    lines.push('Cursor: crew tools removed');
+    lines.push('Cursor: team tools removed');
   }
 
   if (removeGitHook(root)) lines.push('Git: post-commit hook removed');
@@ -418,11 +418,11 @@ export function wiringStatus(root, { home = homedir() } = {}) {
   const codex = existsSync(codexFile) ? readFileSync(codexFile, 'utf8').split(/\r?\n/).some((l) => CODEX_HEADER.test(l)) : null;
   const cursorFile = join(root, '.cursor', 'mcp.json');
   const cj = readJson(cursorFile);
-  const cursor = existsSync(cursorFile) ? !!(cj.value && cj.value.mcpServers && cj.value.mcpServers.vibecrew) : null;
+  const cursor = existsSync(cursorFile) ? !!(cj.value && cj.value.mcpServers && cj.value.mcpServers.openhuddle) : null;
   const { file, inWorkTree } = postCommitPath(root);
   // null = deliberately not installed (hooks in the repo, or someone else's non-shell hook).
   const git_hook =
-    inWorkTree || foreignNonShellHook(file) ? null : existsSync(file) && readFileSync(file, 'utf8').includes('# >>> vibecrew');
-  const app = existsSync(join(vibecrewHome(home), 'app', 'bin', 'vibecrew.js'));
+    inWorkTree || foreignNonShellHook(file) ? null : existsSync(file) && readFileSync(file, 'utf8').includes('# >>> openhuddle');
+  const app = existsSync(join(openhuddleHome(home), 'app', 'bin', 'openhuddle.js'));
   return { claude_hooks, codex, cursor, git_hook, app };
 }

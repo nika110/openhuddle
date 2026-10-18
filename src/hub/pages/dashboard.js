@@ -1,8 +1,8 @@
-// vibecrew dashboard. Everything teammates write is untrusted: it only ever
+// openhuddle dashboard. Everything teammates write is untrusted: it only ever
 // reaches the page through textContent / text nodes, never as markup.
 
 const teamId = location.pathname.split('/').filter(Boolean)[1] || '';
-const storeKey = `vibecrew:${teamId}`;
+const storeKey = `openhuddle:${teamId}`;
 
 let token = '';
 let state = null;
@@ -77,7 +77,7 @@ function clock(t) {
   return new Date(ms).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 }
 
-// ---------- crew identity ----------
+// ---------- team identity ----------
 
 function member(id) {
   return state?.members.find((m) => m.id === id) || null;
@@ -177,7 +177,7 @@ function lockOut(reason) {
   setConn(false, 'Not connected');
   if (reason === 'expired') {
     $('#locked-title').textContent = 'This access key no longer works';
-    $('#locked-text').textContent = 'You may have left the crew or been removed, or the link is old. Run this inside the project folder to get a fresh dashboard link:';
+    $('#locked-text').textContent = 'You may have left the team or been removed, or the link is old. Run this inside the project folder to get a fresh dashboard link:';
   }
 }
 
@@ -195,9 +195,9 @@ function renderAll() {
 }
 
 function renderHeader() {
-  const name = state.team?.name || 'Your crew';
+  const name = state.team?.name || 'Your team';
   $('#team-name').textContent = name;
-  document.title = `${name} on vibecrew`;
+  document.title = `${name} on openhuddle`;
   const me = state.me;
   const box = clear($('#me'));
   if (me) box.append(who(me.id), h('span', { class: 'role', text: me.role === 'owner' ? 'owner' : 'member' }));
@@ -219,7 +219,7 @@ function renderMembers() {
   const list = clear($('#members'));
   const members = state.members || [];
   const online = members.filter((m) => m.online).length;
-  $('#crew-count').textContent = `${online} of ${members.length} online`;
+  $('#team-count').textContent = `${online} of ${members.length} online`;
   for (const m of members) {
     const claims = (state.claims || []).filter((c) => c.member_id === m.id).map((c) => c.path);
     const current = (m.current_tasks || []).map(task).filter(Boolean);
@@ -400,8 +400,8 @@ function renderPrompt() {
   if (p.state === 'draft' || p.state === 'amending') {
     bar.append(
       h('p', { class: 'bar-text', text: p.state === 'amending'
-        ? `Locked v${p.locked_version} stays in force until the crew approves these changes.`
-        : 'Anyone in the crew can write here, directly or by telling their agent. When it reads right, put it up for a vote.' }),
+        ? `Locked v${p.locked_version} stays in force until the team approves these changes.`
+        : 'Anyone in the team can write here, directly or by telling their agent. When it reads right, put it up for a vote.' }),
       h('div', { class: 'bar-actions' },
         h('button', { class: 'btn small', type: 'button', text: 'Submit for vote', onclick: () => act(() => api('/api/prompt/submit', {}), 'Submitted for a vote') }),
       ),
@@ -423,7 +423,7 @@ function renderPrompt() {
       ),
     );
   } else if (p.state === 'locked') {
-    bar.append(h('p', { class: 'bar-text', text: 'Approved by the crew. The lead turns this into the plan. Editing a section starts an amendment that needs a new vote.' }));
+    bar.append(h('p', { class: 'bar-text', text: 'Approved by the team. The lead turns this into the plan. Editing a section starts an amendment that needs a new vote.' }));
   }
 
   // Leave open editors alone so a live update never eats what someone is typing.
@@ -457,7 +457,7 @@ function startEdit(title, body) {
   const save = h('button', { class: 'btn small', type: 'button', text: 'Save section' });
   const cancel = h('button', { class: 'btn small ghost', type: 'button', text: 'Cancel' });
   const hint = state.prompt?.state === 'locked'
-    ? h('p', { class: 'hint', text: 'Saving starts an amendment. Locked v' + state.prompt.locked_version + ' stays in force until the crew approves the new version.' })
+    ? h('p', { class: 'hint', text: 'Saving starts an amendment. Locked v' + state.prompt.locked_version + ' stays in force until the team approves the new version.' })
     : null;
   save.addEventListener('click', async () => {
     save.disabled = true;
@@ -488,8 +488,8 @@ function describe(ev) {
   const d = ev.data || {};
   const actor = ev.member_id;
   switch (ev.kind) {
-    case 'joined': return [who(actor), ' joined the crew', d.tool ? ` with ${toolName(d.tool)}` : ''];
-    case 'left': return [who(actor), ' left the crew'];
+    case 'joined': return [who(actor), ' joined the team', d.tool ? ` with ${toolName(d.tool)}` : ''];
+    case 'left': return [who(actor), ' left the team'];
     case 'update': return [who(actor), ': ', shorten(d.text, 300)];
     case 'decision': return [who(actor), ' decided: ', shorten(d.text, 220), d.why ? ` Why: ${shorten(d.why, 160)}` : ''];
     case 'file_edit': return [who(actor), ' is editing ', code(d.path || ''), d.task_key ? [' for ', code(d.task_key)] : ''];
@@ -513,7 +513,7 @@ function describe(ev) {
     case 'task_unblocked': return [taskRef(d.key), ' is ready for ', who(d.assignee_id)];
     case 'settings_changed': return [who(actor), ' changed the house rules', d.changes ? `: ${Object.keys(d.changes).join(', ').replace(/_/g, ' ')}` : ''];
     case 'lead_changed': return [who(d.lead_id), ' is now the lead'];
-    case 'member_removed': return [h('b', { text: d.name || 'Someone' }), ' was removed from the crew'];
+    case 'member_removed': return [h('b', { text: d.name || 'Someone' }), ' was removed from the team'];
     default: return [who(actor), ` ${String(ev.kind || 'did something').replace(/_/g, ' ')}`];
   }
 }
@@ -534,7 +534,7 @@ function renderFeed() {
   const list = clear($('#feed'));
   const events = [...feedEvents.values()].sort((a, b) => b.id - a.id);
   if (!events.length) {
-    list.append(h('li', { class: 'feed-empty', text: 'Quiet so far. Things your crew’s agents do show up here as they happen.' }));
+    list.append(h('li', { class: 'feed-empty', text: 'Quiet so far. Things your team’s agents do show up here as they happen.' }));
     return;
   }
   for (const ev of events) {

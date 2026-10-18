@@ -29,7 +29,7 @@ async function run(argv, { cwd, home }) {
   const code = await main(argv, {
     cwd,
     home,
-    env: { VIBECREW_NO_CLAUDE_CLI: '1' },
+    env: { OPENHUDDLE_NO_CLAUDE_CLI: '1' },
     out: (s) => (out += s),
     err: (s) => (err += s),
   });
@@ -49,15 +49,15 @@ test('e2e: two friends go from create to a finished dependency', async () => {
   const homeB = makeHome();
   dirs.push(repoA, repoB, homeA, homeB);
 
-  // 1. Ana creates the crew, Ben joins with the printed link.
+  // 1. Ana creates the team, Ben joins with the printed link.
   const created = await run(['create', '--hub', hub.url, '--as', 'ana', '--name', 'pizza'], { cwd: repoA, home: homeA });
   assert.equal(created.code, 0, created.err);
-  const invite = /npx vibecrew join (\S+)/.exec(created.out)?.[1];
+  const invite = /npx openhuddle join (\S+)/.exec(created.out)?.[1];
   assert.ok(invite, created.out);
   const joined = await run(['join', invite, '--as', 'ben'], { cwd: repoB, home: homeB });
   assert.equal(joined.code, 0, joined.err);
   assert.ok(existsSync(join(repoB, '.claude', 'settings.local.json')), 'Claude Code hooks wired for Ben');
-  assert.match(readFileSync(join(repoB, '.git', 'info', 'exclude'), 'utf8'), /\.vibecrew\//);
+  assert.match(readFileSync(join(repoB, '.git', 'info', 'exclude'), 'utf8'), /\.openhuddle\//);
 
   const projA = findProject(repoA);
   const projB = findProject(repoB);
@@ -126,7 +126,7 @@ test('e2e: two friends go from create to a finished dependency', async () => {
   assert.match(answer, /T2/, 'snapshot shows what Ben is on');
   assert.match(answer, /\{ user, token \}/);
 
-  // 8. A real git commit in Ana's repo reaches the crew through the post-commit hook.
+  // 8. A real git commit in Ana's repo reaches the team through the post-commit hook.
   writeFileSync(join(repoA, 'menu.txt'), 'margherita\n');
   git(repoA, 'add', '-A');
   git(repoA, 'commit', '-q', '-m', 'add the menu');

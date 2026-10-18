@@ -19,7 +19,7 @@ export async function makeCrew(url, { team = 'pizza-app', a = 'alice', b = 'bob'
   return { owner, member };
 }
 
-// Writes .vibecrew/config.json into `repo` for these credentials and returns the project.
+// Writes .openhuddle/config.json into `repo` for these credentials and returns the project.
 export function projectFor(repo, url, creds) {
   saveConfig(repo, {
     hub: url,

@@ -34,7 +34,7 @@ test('mcp: initialize echoes supported version', async () => {
   assert.equal(res.length, 3, 'notifications get no response');
   const init = byId(res, 1).result;
   assert.equal(init.protocolVersion, '2025-03-26');
-  assert.equal(init.serverInfo.name, 'vibecrew');
+  assert.equal(init.serverInfo.name, 'openhuddle');
   assert.deepEqual(init.capabilities, { tools: {} });
   assert.ok(init.instructions.includes('team_sync'));
   assert.ok(init.instructions.includes('skeleton'));
@@ -61,7 +61,7 @@ test('mcp: unknown method -32601', async () => {
 test('mcp: no project → join hint', async () => {
   const [res] = await rpc(null, [call(1, 'team_sync')]);
   assert.equal(res.result.isError, false);
-  assert.ok(res.result.content[0].text.includes('npx vibecrew join'));
+  assert.ok(res.result.content[0].text.includes('npx openhuddle join'));
   const [bad] = await rpc(null, [call(2, 'no_such_tool')]);
   assert.equal(bad.result.isError, true);
 });
@@ -119,7 +119,7 @@ test('mcp: master_prompt edit and plan create round trip', async () => {
 test('mcp: hub error surfaces as isError', async () => {
   const [res] = await rpc(A, [call(1, 'task', { action: 'start', key: 'T999' })]);
   assert.equal(res.result.isError, true);
-  assert.ok(res.result.content[0].text.startsWith('vibecrew:'));
+  assert.ok(res.result.content[0].text.startsWith('openhuddle:'));
   const [missing] = await rpc(A, [call(2, 'team_post', { kind: 'update' })]);
   assert.equal(missing.result.isError, true);
   assert.ok(missing.result.content[0].text.includes('text'));
@@ -129,7 +129,7 @@ test('mcp: hub error text reaches the agent framed', async () => {
   const [res] = await rpc(A, [call(1, 'team_ask', { to: 'zed', question: 'hi' })]);
   const text = res.result.content[0].text;
   assert.equal(res.result.isError, true);
-  assert.ok(text.startsWith('vibecrew:'), text);
+  assert.ok(text.startsWith('openhuddle:'), text);
   assert.ok(text.includes('<team-data'), text);
   assert.ok(text.includes('zed'), text);
 });

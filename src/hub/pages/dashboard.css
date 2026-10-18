@@ -1,4 +1,4 @@
-/* vibecrew dashboard */
+/* openhuddle dashboard */
 
 .c0 { --pc: var(--muted); }
 
@@ -237,7 +237,7 @@
   font-weight: 800;
 }
 
-/* Crew */
+/* Team */
 
 .members {
   list-style: none;
@@ -847,7 +847,7 @@
     display: contents;
   }
 
-  .panel-crew { order: 1; }
+  .panel-team { order: 1; }
   .panel-board { order: 2; }
   .panel-feed { order: 3; }
   .panel-prompt { order: 4; }

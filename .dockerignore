@@ -2,7 +2,7 @@
 node_modules
 docs
 test
-.vibecrew
+.openhuddle
 *.db
 *.db-wal
 *.db-shm

@@ -1,5 +1,5 @@
 node_modules/
-.vibecrew/
+.openhuddle/
 *.db
 *.db-wal
 *.db-shm

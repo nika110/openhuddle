@@ -1,4 +1,4 @@
-// The latest crew news after `cursor`. A long backlog shows its newest end, never its oldest page.
+// The latest team news after `cursor`. A long backlog shows its newest end, never its oldest page.
 export async function latestNews(api, cursor, n = 40) {
   const tail = await api.get(`/api/events?tail=${n}`);
   const all = tail.events || [];

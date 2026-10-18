@@ -1,4 +1,4 @@
-/* vibecrew base: tokens, reset, brand, controls. Shared by every page. */
+/* openhuddle base: tokens, reset, brand, controls. Shared by every page. */
 
 :root {
   --bg: #f4f6fb;
@@ -13,7 +13,7 @@
   --ok: #138a63;
   --bad: #c8323e;
 
-  /* Player colors: one per crew member, in join order. */
+  /* Player colors: one per team member, in join order. */
   --p1: #e8505b;
   --p2: #3d6df2;
   --p3: #f2b705;

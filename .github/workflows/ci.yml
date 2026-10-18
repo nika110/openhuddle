@@ -24,7 +24,7 @@ jobs:
           git config --global user.name ci
       - run: npm test
 
-  # Crew members only need Node 20; the hub (node:sqlite) needs 22.13+. These suites never load the hub.
+  # Team members only need Node 20; the hub (node:sqlite) needs 22.13+. These suites never load the hub.
   client-node20:
     strategy:
       fail-fast: false
@@ -45,7 +45,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          out=$(node bin/vibecrew.js hub --port 0 2>&1)
+          out=$(node bin/openhuddle.js hub --port 0 2>&1)
           code=$?
           echo "$out"
           test $code -eq 1 && echo "$out" | grep -q "Node 22.13 or newer"

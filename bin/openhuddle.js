@@ -6,7 +6,7 @@ main(process.argv.slice(2)).then(
     if (typeof code === 'number') process.exitCode = code;
   },
   (err) => {
-    console.error(`vibecrew: ${err?.message || err}`);
+    console.error(`openhuddle: ${err?.message || err}`);
     process.exitCode = 1;
   },
 );

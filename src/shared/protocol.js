@@ -4,7 +4,7 @@ const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.ur
 
 export const VERSION = pkg.version;
 
-// Hosted hub. Override with --hub or VIBECREW_HUB.
+// Hosted hub. Override with --hub or OPENHUDDLE_HUB.
 export const DEFAULT_HUB = 'http://localhost:8787';
 
 export const DEFAULTS = Object.freeze({

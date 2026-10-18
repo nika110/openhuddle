@@ -7,19 +7,19 @@ import { makeRepo, makeHome, cleanup, git } from './helpers/client.js';
 let home;
 before(() => {
   home = makeHome();
-  process.env.VIBECREW_HOME = join(home, '.vibecrew');
-  process.env.VIBECREW_NO_CLAUDE_CLI = '1';
+  process.env.OPENHUDDLE_HOME = join(home, '.openhuddle');
+  process.env.OPENHUDDLE_NO_CLAUDE_CLI = '1';
   delete process.env.CODEX_HOME;
 });
 after(() => cleanup(home));
 
 const wire = await import('../src/client/wire.js');
-const CMD = '"C:/nodejs/node.exe" "C:/Users/x/.vibecrew/app/bin/vibecrew.js"';
+const CMD = '"C:/nodejs/node.exe" "C:/Users/x/.openhuddle/app/bin/openhuddle.js"';
 
 function ourCommands(settings) {
   const out = [];
   for (const groups of Object.values(settings.hooks || {})) {
-    for (const g of groups) for (const h of g.hooks || []) if (/vibecrew/.test(h.command) && / hook /.test(h.command)) out.push(h.command);
+    for (const g of groups) for (const h of g.hooks || []) if (/openhuddle/.test(h.command) && / hook /.test(h.command)) out.push(h.command);
   }
   return out;
 }
@@ -51,7 +51,7 @@ test('wire: claude settings merge is idempotent', () => {
   const once = wire.mergeClaudeSettings({}, CMD);
   const twice = wire.mergeClaudeSettings(once, CMD);
   assert.deepEqual(twice, once);
-  const moved = wire.mergeClaudeSettings(once, '"D:/node.exe" "D:/vc/vibecrew.js"');
+  const moved = wire.mergeClaudeSettings(once, '"D:/node.exe" "D:/vc/openhuddle.js"');
   assert.equal(ourCommands(moved).length, 5);
   assert.ok(ourCommands(moved).every((c) => c.startsWith('"D:/')));
 });
@@ -65,26 +65,26 @@ test('wire: unmerge removes only ours', () => {
 });
 
 test('wire: codex toml append, replace in place, unmerge', () => {
-  const server = { command: 'C:/nodejs/node.exe', args: ['C:/Users/x/.vibecrew/app/bin/vibecrew.js', 'mcp'] };
+  const server = { command: 'C:/nodejs/node.exe', args: ['C:/Users/x/.openhuddle/app/bin/openhuddle.js', 'mcp'] };
   const base = 'model = "o4"\n\n[mcp_servers.other]\ncommand = "other"\n\n[profiles.fast]\nmodel = "mini"\n';
   const added = wire.mergeCodexToml(base, server);
   assert.ok(added.includes('[mcp_servers.other]'));
   assert.ok(added.includes('[profiles.fast]'));
-  assert.ok(added.includes('[mcp_servers.vibecrew]'));
+  assert.ok(added.includes('[mcp_servers.openhuddle]'));
   assert.ok(added.includes('command = "C:/nodejs/node.exe"'));
-  assert.ok(added.includes('args = ["C:/Users/x/.vibecrew/app/bin/vibecrew.js","mcp"]'));
+  assert.ok(added.includes('args = ["C:/Users/x/.openhuddle/app/bin/openhuddle.js","mcp"]'));
   const again = wire.mergeCodexToml(added, { ...server, command: 'D:/node.exe' });
-  assert.equal(again.match(/\[mcp_servers\.vibecrew\]/g).length, 1);
+  assert.equal(again.match(/\[mcp_servers\.openhuddle\]/g).length, 1);
   assert.ok(again.includes('command = "D:/node.exe"'));
   assert.ok(!again.includes('C:/nodejs/node.exe'));
   // in place: stays before [profiles.fast] when it was there
-  const mid = 'a = 1\n[mcp_servers.vibecrew]\ncommand = "old"\n[mcp_servers.vibecrew.env]\nX = "1"\n[profiles.fast]\nmodel = "mini"\n';
+  const mid = 'a = 1\n[mcp_servers.openhuddle]\ncommand = "old"\n[mcp_servers.openhuddle.env]\nX = "1"\n[profiles.fast]\nmodel = "mini"\n';
   const replaced = wire.mergeCodexToml(mid, server);
-  assert.ok(replaced.indexOf('[mcp_servers.vibecrew]') < replaced.indexOf('[profiles.fast]'));
+  assert.ok(replaced.indexOf('[mcp_servers.openhuddle]') < replaced.indexOf('[profiles.fast]'));
   assert.ok(!replaced.includes('command = "old"'));
-  assert.ok(!replaced.includes('[mcp_servers.vibecrew.env]'));
+  assert.ok(!replaced.includes('[mcp_servers.openhuddle.env]'));
   const removed = wire.unmergeCodexToml(added);
-  assert.ok(!removed.includes('vibecrew'));
+  assert.ok(!removed.includes('openhuddle'));
   assert.ok(removed.includes('[mcp_servers.other]'));
   assert.ok(removed.includes('model = "mini"'));
   // backslashes survive as valid TOML escapes
@@ -96,11 +96,11 @@ test('wire: cursor json merge keeps other servers', () => {
   const server = { command: 'node', args: ['vc.js', 'mcp'] };
   const merged = wire.mergeCursorJson({ mcpServers: { other: { command: 'x' } }, extra: 1 }, server);
   assert.deepEqual(merged.mcpServers.other, { command: 'x' });
-  assert.deepEqual(merged.mcpServers.vibecrew, server);
+  assert.deepEqual(merged.mcpServers.openhuddle, server);
   assert.equal(merged.extra, 1);
   const back = wire.unmergeCursorJson(merged);
   assert.deepEqual(back, { mcpServers: { other: { command: 'x' } }, extra: 1 });
-  assert.deepEqual(wire.mergeCursorJson(null, server), { mcpServers: { vibecrew: server } });
+  assert.deepEqual(wire.mergeCursorJson(null, server), { mcpServers: { openhuddle: server } });
 });
 
 test('wire: git hook appended to existing hook and idempotent', () => {
@@ -113,7 +113,7 @@ test('wire: git hook appended to existing hook and idempotent', () => {
     const text = readFileSync(hook, 'utf8');
     assert.ok(text.startsWith('#!/bin/sh\n'));
     assert.ok(text.includes('echo existing'));
-    assert.equal(text.match(/# >>> vibecrew/g).length, 1);
+    assert.equal(text.match(/# >>> openhuddle/g).length, 1);
     assert.ok(text.includes(`${CMD} hook git-commit >/dev/null 2>&1 &`));
     // our block runs before the existing `exit 0`
     assert.ok(text.indexOf('hook git-commit') < text.indexOf('exit 0'));
@@ -165,7 +165,7 @@ test('wire: git hook inlines into sh, bash and zsh hooks', () => {
       writeFileSync(hook, `${shebang}\necho existing\n`);
       assert.equal(wire.installGitHook(repo, CMD).installed, true, shebang);
       const text = readFileSync(hook, 'utf8');
-      assert.ok(text.startsWith(`${shebang}\n# >>> vibecrew`), text);
+      assert.ok(text.startsWith(`${shebang}\n# >>> openhuddle`), text);
       assert.equal(wire.wiringStatus(repo, { home }).git_hook, true);
     } finally {
       cleanup(repo);
@@ -187,18 +187,18 @@ test('wire: git hook skipped when hooks live in the work tree', () => {
 });
 
 test('wire: command quoting with spaces', () => {
-  const cmd = wire.appCommand('C:\\Users\\A B\\.vibecrew\\app\\bin\\vibecrew.js', { execPath: 'C:\\Program Files\\nodejs\\node.exe' });
-  assert.equal(cmd, '"C:/Program Files/nodejs/node.exe" "C:/Users/A B/.vibecrew/app/bin/vibecrew.js"');
+  const cmd = wire.appCommand('C:\\Users\\A B\\.openhuddle\\app\\bin\\openhuddle.js', { execPath: 'C:\\Program Files\\nodejs\\node.exe' });
+  assert.equal(cmd, '"C:/Program Files/nodejs/node.exe" "C:/Users/A B/.openhuddle/app/bin/openhuddle.js"');
   assert.equal(wire.appCommand('/home/a/vc.js', { execPath: '/usr/bin/node' }), '"/usr/bin/node" "/home/a/vc.js"');
 });
 
-test('wire: installApp copies the package into VIBECREW_HOME', () => {
+test('wire: installApp copies the package into OPENHUDDLE_HOME', () => {
   const bin = wire.installApp({ home });
-  assert.ok(bin.replace(/\\/g, '/').endsWith('.vibecrew/app/bin/vibecrew.js'));
+  assert.ok(bin.replace(/\\/g, '/').endsWith('.openhuddle/app/bin/openhuddle.js'));
   assert.ok(bin.replace(/\\/g, '/').startsWith(home.replace(/\\/g, '/')));
   assert.ok(existsSync(bin));
-  assert.ok(existsSync(join(home, '.vibecrew', 'app', 'src', 'client', 'wire.js')));
-  assert.ok(existsSync(join(home, '.vibecrew', 'app', 'package.json')));
+  assert.ok(existsSync(join(home, '.openhuddle', 'app', 'src', 'client', 'wire.js')));
+  assert.ok(existsSync(join(home, '.openhuddle', 'app', 'package.json')));
   // second install replaces cleanly
   assert.equal(wire.installApp({ home }), bin);
 });
@@ -216,9 +216,9 @@ test('wire: wireAll + unwireAll in a temp repo with codex and cursor present', (
     assert.ok(lines.some((l) => /claude mcp add/.test(l)), 'manual claude command shown when CLI disabled');
     const settings = JSON.parse(readFileSync(join(repo, '.claude', 'settings.local.json'), 'utf8'));
     assert.equal(ourCommands(settings).length, 5);
-    assert.ok(readFileSync(join(home, '.codex', 'config.toml'), 'utf8').includes('[mcp_servers.vibecrew]'));
+    assert.ok(readFileSync(join(home, '.codex', 'config.toml'), 'utf8').includes('[mcp_servers.openhuddle]'));
     const cursor = JSON.parse(readFileSync(join(repo, '.cursor', 'mcp.json'), 'utf8'));
-    assert.deepEqual(cursor.mcpServers.vibecrew.args.slice(-3, -1), ['mcp', '--dir']);
+    assert.deepEqual(cursor.mcpServers.openhuddle.args.slice(-3, -1), ['mcp', '--dir']);
     assert.ok(readFileSync(join(repo, '.git', 'hooks', 'post-commit'), 'utf8').includes('hook git-commit'));
     assert.equal(git(repo, 'status', '--porcelain'), '', 'nothing to commit after wiring');
     const status = wire.wiringStatus(repo, { home });
@@ -229,7 +229,7 @@ test('wire: wireAll + unwireAll in a temp repo with codex and cursor present', (
     wire.unwireAll(repo, { home });
     assert.ok(!existsSync(join(repo, '.claude', 'settings.local.json')));
     const toml = readFileSync(join(home, '.codex', 'config.toml'), 'utf8');
-    assert.ok(!toml.includes('vibecrew'));
+    assert.ok(!toml.includes('openhuddle'));
     assert.ok(toml.includes('[mcp_servers.other]'));
     assert.ok(!existsSync(join(repo, '.cursor', 'mcp.json')));
     assert.ok(!existsSync(join(repo, '.git', 'hooks', 'post-commit')));
@@ -238,7 +238,7 @@ test('wire: wireAll + unwireAll in a temp repo with codex and cursor present', (
   }
 });
 
-test('wire: codex block stays while another project still uses vibecrew', () => {
+test('wire: codex block stays while another project still uses openhuddle', () => {
   const a = makeRepo();
   const b = makeRepo();
   try {
@@ -247,9 +247,9 @@ test('wire: codex block stays while another project still uses vibecrew', () => 
     wire.wireAll(a, { home, tools });
     wire.wireAll(b, { home, tools });
     wire.unwireAll(a, { home });
-    assert.ok(readFileSync(join(home, '.codex', 'config.toml'), 'utf8').includes('[mcp_servers.vibecrew]'));
+    assert.ok(readFileSync(join(home, '.codex', 'config.toml'), 'utf8').includes('[mcp_servers.openhuddle]'));
     wire.unwireAll(b, { home });
-    assert.ok(!readFileSync(join(home, '.codex', 'config.toml'), 'utf8').includes('[mcp_servers.vibecrew]'));
+    assert.ok(!readFileSync(join(home, '.codex', 'config.toml'), 'utf8').includes('[mcp_servers.openhuddle]'));
   } finally {
     cleanup(a, b);
   }

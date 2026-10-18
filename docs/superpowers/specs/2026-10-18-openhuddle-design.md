@@ -1,4 +1,4 @@
-# vibecrew — design
+# OpenHuddle — design
 
 **One line:** multiplayer mode for AI coding agents. A few friends, each with their own
 Claude Code / Codex / Cursor, build one project together, and every agent knows in real
@@ -15,8 +15,8 @@ Teams: one machine only; agentmemory/projectmem: single-user memory). Nobody cov
 
 ## Goals
 
-1. **Setup is two commands, no config files.** Friend1 runs `npx vibecrew create` in the
-   repo, gets an invite link. Others run `npx vibecrew join <link>`. It detects installed
+1. **Setup is two commands, no config files.** Friend1 runs `npx openhuddle create` in the
+   repo, gets an invite link. Others run `npx openhuddle join <link>`. It detects installed
    AI tools and wires itself in. Under 2 minutes, no docs.
 2. **Live awareness inside the agent.** News from teammates lands in the running agent on
    every prompt and after every edit, without anyone asking.
@@ -33,7 +33,7 @@ Teams: one machine only; agentmemory/projectmem: single-user memory). Nobody cov
    Before an agent edits a file a teammate holds, the edit pauses and asks the human
    (`claim_mode: ask`, alternatives `block` / `warn`).
 7. **Humans can watch.** A live web dashboard: members + presence, master prompt with
-   votes, task board, live feed. A terminal feed: `vibecrew watch`.
+   votes, task board, live feed. A terminal feed: `openhuddle watch`.
 8. **Settings by talking.** Every setting has a default and is changed by telling your agent
    ("let the agent assign tasks from now on"), never by editing files.
 
@@ -62,7 +62,7 @@ Teams: one machine only; agentmemory/projectmem: single-user memory). Nobody cov
               HTTPS│JSON / SSE         │                   │
            ┌───────┴──────┐    ┌───────┴──────┐    ┌───────┴──────┐
            │ friend1 PC   │    │ friend2 PC   │    │ friendN PC   │
-           │ vibecrew CLI │    │              │    │              │
+           │ openhuddle CLI │    │              │    │              │
            │ ├ MCP server │◄── agent tools (Claude Code, Codex, Cursor)
            │ ├ hooks      │◄── Claude Code hooks: inject news, guard edits
            │ └ git hook   │◄── post-commit: any tool
@@ -70,13 +70,13 @@ Teams: one machine only; agentmemory/projectmem: single-user memory). Nobody cov
 ```
 
 - **Hub:** zero-dependency Node (`node:http`, `node:sqlite`, SSE). Multi-tenant. Hosted
-  default, self-host with `npx vibecrew hub` or Docker.
-- **Client:** the same npm package. `create`/`join` copy the package to `~/.vibecrew/app`
+  default, self-host with `npx openhuddle hub` or Docker.
+- **Client:** the same npm package. `create`/`join` copy the package to `~/.openhuddle/app`
   so hooks and the MCP server start fast with an absolute `node` path.
-- **Per-project local state:** `.vibecrew/config.json` (hub, team, member, token) and
-  `.vibecrew/state.json` (feed cursors), excluded via `.git/info/exclude`.
+- **Per-project local state:** `.openhuddle/config.json` (hub, team, member, token) and
+  `.openhuddle/state.json` (feed cursors), excluded via `.git/info/exclude`.
 - **Wiring:** Claude Code → `claude mcp add --scope local` + hooks in
-  `.claude/settings.local.json`; Codex → `[mcp_servers.vibecrew]` in `~/.codex/config.toml`;
+  `.claude/settings.local.json`; Codex → `[mcp_servers.openhuddle]` in `~/.codex/config.toml`;
   Cursor → `.cursor/mcp.json`; every repo → `post-commit` git hook. All merges are
   idempotent and never remove foreign entries.
 - **Agent tools (MCP):** `team_sync`, `team_post`, `team_ask`, `team_reply`, `master_prompt`,
@@ -84,7 +84,7 @@ Teams: one machine only; agentmemory/projectmem: single-user memory). Nobody cov
 
 ## Decisions made by Claude (owner delegated all decisions)
 
-- Name **vibecrew** (npm + GitHub free); tagline "multiplayer mode for AI coding agents".
+- Name **OpenHuddle** (npm + GitHub free); tagline "multiplayer mode for AI coding agents".
 - Plain JavaScript ESM, zero runtime dependencies, Node ≥ 20 for the client, Node ≥ 22.13
   for the hub (`node:sqlite`). Tests with `node --test`.
 - Hand-rolled stdio MCP (JSON-RPC 2.0, newline-delimited) instead of the SDK: keeps
@@ -95,7 +95,7 @@ Teams: one machine only; agentmemory/projectmem: single-user memory). Nobody cov
   instructions. Secrets matching common key formats are redacted on client and hub.
 - Dashboard renders all teammate text with `textContent`; strict CSP; token in URL
   fragment, never in query strings.
-- Open source, MIT, `github.com/nika110/vibecrew`.
+- Open source, MIT, `github.com/nika110/openhuddle`.
 
 ## Open (owner)
 

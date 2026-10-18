@@ -1,11 +1,11 @@
-// Per-project local state: .vibecrew/config.json (who you are on which hub) and
-// .vibecrew/state.json (feed cursors, cached settings). Never committed.
+// Per-project local state: .openhuddle/config.json (who you are on which hub) and
+// .openhuddle/state.json (feed cursors, cached settings). Never committed.
 import { existsSync, readFileSync, writeFileSync, mkdirSync, rmSync, appendFileSync, renameSync, unlinkSync } from 'node:fs';
 import { join, dirname, resolve, isAbsolute } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 
-export const DIR_NAME = '.vibecrew';
+export const DIR_NAME = '.openhuddle';
 const STATE_FILE = 'state.json';
 const SHOWN_MAX = 200;
 
@@ -32,7 +32,7 @@ export function dashboardUrl(config) {
 }
 
 export function findProject(start) {
-  let dir = resolve(process.env.VIBECREW_DIR || start || process.cwd());
+  let dir = resolve(process.env.OPENHUDDLE_DIR || start || process.cwd());
   for (;;) {
     const file = join(dir, DIR_NAME, 'config.json');
     if (existsSync(file)) {
@@ -62,7 +62,7 @@ export function removeConfig(root) {
   rmSync(join(root, DIR_NAME), { recursive: true, force: true });
 }
 
-// Reads .vibecrew/state.json. Hooks run in parallel, so a read can land while another hook
+// Reads .openhuddle/state.json. Hooks run in parallel, so a read can land while another hook
 // replaces the file: transient failures are retried. A file that never existed comes back
 // as { fresh: true }; one that stays unreadable as { unreadable: true }. Callers must not
 // replay history from cursor 0 in either case.

@@ -32,17 +32,17 @@ test('pages: join page escapes invite url', () => {
   const hostile = 'https://hub.example/join/t1.x"><script>alert(1)</script>';
   const served = raw.replace('{{INVITE_URL}}', escapeHtml(hostile));
   assert.ok(!served.includes('<script>alert(1)</script>'));
-  assert.ok(served.includes('npx vibecrew join https://hub.example/join/t1.x&quot;&gt;&lt;script&gt;'));
+  assert.ok(served.includes('npx openhuddle join https://hub.example/join/t1.x&quot;&gt;&lt;script&gt;'));
   assert.ok(!/<script(?![^>]*\bsrc=)[^>]*>/i.test(served), 'no inline script');
   assert.ok(!/<style/i.test(served), 'no inline style block');
 });
 
 test('pages: landing has quickstart commands', () => {
   const html = read('landing.html');
-  assert.ok(html.includes('npx vibecrew create'));
-  assert.ok(html.includes('npx vibecrew join'));
-  assert.ok(html.includes('npx vibecrew hub'));
-  assert.ok(html.includes('https://github.com/nika110/vibecrew'));
+  assert.ok(html.includes('npx openhuddle create'));
+  assert.ok(html.includes('npx openhuddle join'));
+  assert.ok(html.includes('npx openhuddle hub'));
+  assert.ok(html.includes('https://github.com/nika110/openhuddle'));
   assert.equal(html.split('{{HUB_URL}}').length - 1, 1, 'hub url placeholder appears once');
 });
 
@@ -54,7 +54,7 @@ test('pages: every page is CSP-clean (no inline script, style blocks or style at
     assert.ok(!/<style/i.test(html), `${name}: <style> block`);
     assert.ok(!/\sstyle\s*=/i.test(html), `${name}: style= attribute`);
     assert.ok(!/\son[a-z]+\s*=/i.test(html), `${name}: inline event handler`);
-    assert.ok(!/(src|href)\s*=\s*["']https?:\/\/(?!github\.com\/nika110\/vibecrew)/i.test(html), `${name}: external asset`);
+    assert.ok(!/(src|href)\s*=\s*["']https?:\/\/(?!github\.com\/nika110\/openhuddle)/i.test(html), `${name}: external asset`);
     assert.match(html, /<link rel="icon" href="\/static\/favicon\.svg"/, `${name}: favicon`);
   }
 });

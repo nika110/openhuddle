@@ -29,10 +29,10 @@ export function makeRepo({ origin, commit = true } = {}) {
   return dir;
 }
 
-// A temp home with VIBECREW_HOME inside it; sets process.env for in-process code.
+// A temp home with OPENHUDDLE_HOME inside it; sets process.env for in-process code.
 export function makeHome() {
   const home = tempDir('vc-home-');
-  mkdirSync(join(home, '.vibecrew'), { recursive: true });
+  mkdirSync(join(home, '.openhuddle'), { recursive: true });
   return home;
 }
 
@@ -50,8 +50,8 @@ export function safeEnv(home, extra = {}) {
     ...process.env,
     HOME: home,
     USERPROFILE: home,
-    VIBECREW_HOME: join(home, '.vibecrew'),
-    VIBECREW_NO_CLAUDE_CLI: '1',
+    OPENHUDDLE_HOME: join(home, '.openhuddle'),
+    OPENHUDDLE_NO_CLAUDE_CLI: '1',
     ...extra,
   };
 }

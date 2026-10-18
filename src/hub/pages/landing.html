@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>vibecrew: multiplayer mode for AI coding agents</title>
-  <meta name="description" content="You and your friends each keep your own Claude Code, Codex or Cursor. vibecrew connects the agents so each one knows what the others are building, live.">
+  <title>OpenHuddle: multiplayer mode for AI coding agents</title>
+  <meta name="description" content="You and your friends each keep your own Claude Code, Codex or Cursor. OpenHuddle connects the agents so each one knows what the others are building, live.">
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/static/base.css">
   <link rel="stylesheet" href="/static/site.css">
@@ -13,10 +13,10 @@
   <header class="top">
     <a class="brand" href="/">
       <svg viewBox="0 0 64 64" aria-hidden="true"><circle class="mark-1" cx="21" cy="39" r="11"/><circle class="mark-2" cx="43" cy="39" r="11"/><circle class="mark-3" cx="32" cy="21" r="11"/></svg>
-      vibecrew
+      OpenHuddle
     </a>
     <nav>
-      <a href="https://github.com/nika110/vibecrew">GitHub</a>
+      <a href="https://github.com/nika110/openhuddle">GitHub</a>
     </nav>
   </header>
 
@@ -24,15 +24,15 @@
     <section class="hero">
       <div class="hero-copy">
         <h1>Multiplayer mode for AI coding agents.</h1>
-        <p class="lede">You and your friends each keep your own Claude Code, Codex or Cursor. vibecrew connects the agents, so every one of them knows what the others are building, right now.</p>
+        <p class="lede">You and your friends each keep your own Claude Code, Codex or Cursor. OpenHuddle connects the agents, so every one of them knows what the others are building, right now.</p>
         <div class="cmd">
-          <code id="cmd-create">npx vibecrew create</code>
+          <code id="cmd-create">npx openhuddle create</code>
           <button class="btn small" type="button" data-copy="cmd-create">Copy</button>
         </div>
         <p class="fine">Free and open source. No account, no config files. Needs Node 20 or newer.</p>
       </div>
 
-      <figure class="lobby" aria-label="Example: a crew of three building one app">
+      <figure class="lobby" aria-label="Example: a team of three building one app">
         <div class="lobby-head">
           <span class="lobby-team">pizza-app</span>
           <span class="live"><span class="live-dot"></span>live</span>
@@ -83,13 +83,13 @@
     </section>
 
     <section class="steps" aria-labelledby="steps-title">
-      <h2 id="steps-title">Start a crew in three steps</h2>
+      <h2 id="steps-title">Start a team in three steps</h2>
       <ol class="step-list">
         <li class="c1">
           <span class="step-num">1</span>
-          <h3>Create the crew</h3>
+          <h3>Create the team</h3>
           <p>In your project folder:</p>
-          <div class="cmd"><code id="cmd-step1">npx vibecrew create</code><button class="btn small" type="button" data-copy="cmd-step1">Copy</button></div>
+          <div class="cmd"><code id="cmd-step1">npx openhuddle create</code><button class="btn small" type="button" data-copy="cmd-step1">Copy</button></div>
         </li>
         <li class="c2">
           <span class="step-num">2</span>
@@ -100,7 +100,7 @@
           <span class="step-num">3</span>
           <h3>Friends join</h3>
           <p>Each friend runs this. It downloads the project if they need it and connects their AI tools.</p>
-          <div class="cmd"><code id="cmd-step3">npx vibecrew join &lt;link&gt;</code><button class="btn small" type="button" data-copy="cmd-step3">Copy</button></div>
+          <div class="cmd"><code id="cmd-step3">npx openhuddle join &lt;link&gt;</code><button class="btn small" type="button" data-copy="cmd-step3">Copy</button></div>
         </li>
       </ol>
     </section>
@@ -136,7 +136,7 @@
         <path class="wire c2" d="M360 200 L360 122"/>
         <path class="wire c3" d="M610 200 C610 150 420 150 390 120"/>
         <rect class="hub-box" x="230" y="24" width="260" height="96" rx="18"/>
-        <text class="d-title" x="360" y="64" text-anchor="middle">vibecrew hub</text>
+        <text class="d-title" x="360" y="64" text-anchor="middle">OpenHuddle hub</text>
         <text class="d-sub" x="360" y="92" text-anchor="middle">board, master prompt, live feed</text>
         <g class="c1">
           <rect class="machine" x="20" y="200" width="180" height="72" rx="14"/>
@@ -169,7 +169,7 @@
         </div>
         <div>
           <h3>Git still carries the code</h3>
-          <p>vibecrew never stores your code. Work happens on branches and merges the way it always has; the dashed line is git.</p>
+          <p>OpenHuddle never stores your code. Work happens on branches and merges the way it always has; the dashed line is git.</p>
         </div>
       </div>
     </section>
@@ -177,14 +177,14 @@
     <section class="host" aria-labelledby="host-title">
       <div>
         <h2 id="host-title">Run your own hub</h2>
-        <p>The hub is the same package. Start it anywhere with Node 22.13 or newer, then point your crew at it with <code>--hub</code>.</p>
+        <p>The hub is the same package. Start it anywhere with Node 22.13 or newer, then point your team at it with <code>--hub</code>.</p>
       </div>
-      <div class="cmd"><code id="cmd-hub">npx vibecrew hub</code><button class="btn small" type="button" data-copy="cmd-hub">Copy</button></div>
+      <div class="cmd"><code id="cmd-hub">npx openhuddle hub</code><button class="btn small" type="button" data-copy="cmd-hub">Copy</button></div>
     </section>
   </main>
 
   <footer class="foot">
-    <p>vibecrew is open source under the MIT license. <a href="https://github.com/nika110/vibecrew">Read the code on GitHub</a>.</p>
+    <p>OpenHuddle is open source under the MIT license. <a href="https://github.com/nika110/openhuddle">Read the code on GitHub</a>.</p>
     <p class="foot-hub">This page is served by the hub at <span class="hub-url">{{HUB_URL}}</span></p>
   </footer>
 
