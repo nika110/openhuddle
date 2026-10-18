@@ -29,4 +29,14 @@ jobs:
       - run: npm test
       - name: release tag matches package.json
         run: test "v$(node -p "require('./package.json').version")" = "${GITHUB_REF_NAME}"
-      - run: npm publish --provenance --access public
+      # A version published by hand (npm login + 2FA) is already there; nothing to do.
+      - name: skip if this version is already on npm
+        id: check
+        run: |
+          if npm view "openhuddle@$(node -p "require('./package.json').version")" version > /dev/null 2>&1; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.check.outputs.published == 'false'
+        run: npm publish --provenance --access public
