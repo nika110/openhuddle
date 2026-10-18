@@ -246,6 +246,16 @@ function postCommitPath(root) {
   return { file: join(dir, 'post-commit'), dir, inWorkTree };
 }
 
+// Our block is shell, so it only goes into hooks that sh-family shells run.
+const SHELL_SHEBANG = /^#!\s*(?:\/usr\/bin\/env\s+)?(?:\S*\/)?(?:sh|bash|zsh|dash|ksh)(?:\s|$)/;
+const NOT_SHELL = 'an existing post-commit hook is not a shell script; left it alone';
+
+function foreignNonShellHook(file) {
+  if (!existsSync(file)) return false;
+  const text = readFileSync(file, 'utf8');
+  return !text.includes('# >>> vibecrew') && !SHELL_SHEBANG.test(text.split(/\r?\n/)[0]);
+}
+
 export function installGitHook(root, cmd) {
   if (!gitRoot(root)) return { installed: false, reason: 'not a git repository, so commits are not shared' };
   const { file, dir, inWorkTree } = postCommitPath(root);
@@ -255,8 +265,8 @@ export function installGitHook(root, cmd) {
   if (existsSync(file)) {
     const current = stripGitBlock(readFileSync(file, 'utf8'));
     const lines = current.split('\n');
-    if (lines[0].startsWith('#!')) text = [lines[0], block, ...lines.slice(1)].join('\n');
-    else text = [block, ...lines].join('\n');
+    if (!SHELL_SHEBANG.test(lines[0])) return { installed: false, reason: NOT_SHELL };
+    text = [lines[0], block, ...lines.slice(1)].join('\n');
   } else {
     text = `#!/bin/sh\n${block}\n`;
   }
@@ -409,8 +419,10 @@ export function wiringStatus(root, { home = homedir() } = {}) {
   const cursorFile = join(root, '.cursor', 'mcp.json');
   const cj = readJson(cursorFile);
   const cursor = existsSync(cursorFile) ? !!(cj.value && cj.value.mcpServers && cj.value.mcpServers.vibecrew) : null;
-  const { file } = postCommitPath(root);
-  const git_hook = existsSync(file) && readFileSync(file, 'utf8').includes('# >>> vibecrew');
+  const { file, inWorkTree } = postCommitPath(root);
+  // null = deliberately not installed (hooks in the repo, or someone else's non-shell hook).
+  const git_hook =
+    inWorkTree || foreignNonShellHook(file) ? null : existsSync(file) && readFileSync(file, 'utf8').includes('# >>> vibecrew');
   const app = existsSync(join(vibecrewHome(home), 'app', 'bin', 'vibecrew.js'));
   return { claude_hooks, codex, cursor, git_hook, app };
 }

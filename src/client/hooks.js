@@ -4,10 +4,11 @@
 import { Api } from './api.js';
 import { findProject, loadState, saveState } from './config.js';
 import { gitInfo, lastCommit } from './git.js';
-import { frame, briefing, newsBlock, byId, clip, clock } from './format.js';
+import { frame, briefing, newsBlock, byId, clip, clock, safeName, safeTaskKey } from './format.js';
+import { latestNews } from './news.js';
 import { isAbsolute, join } from 'node:path';
 import { toRepoPath } from '../shared/paths.js';
-import { HOOK_TIMEOUT_MS, URGENT_KINDS } from '../shared/protocol.js';
+import { HOOK_TIMEOUT_MS } from '../shared/protocol.js';
 
 export const HOOK_NAMES = ['session-start', 'prompt', 'pre-edit', 'post-edit', 'stop', 'git-commit'];
 
@@ -16,12 +17,17 @@ const HEADER =
 
 export async function runHook(name, input = {}, ctx = {}) {
   const ms = ctx.timeoutMs ?? HOOK_TIMEOUT_MS;
+  // Once the deadline passes the agent gets nothing, so the late work must not mark news as seen.
+  const run = { timedOut: false };
   let timer;
   const timeout = new Promise((resolve) => {
-    timer = setTimeout(() => resolve(''), ms);
+    timer = setTimeout(() => {
+      run.timedOut = true;
+      resolve('');
+    }, ms);
   });
   try {
-    const out = await Promise.race([inner(name, input || {}, ctx, ms).catch(() => ''), timeout]);
+    const out = await Promise.race([inner(name, input || {}, ctx, ms, run).catch(() => ''), timeout]);
     return typeof out === 'string' ? out : '';
   } catch {
     return '';
@@ -83,37 +89,55 @@ function questionsBlock(state) {
   ].join('\n');
 }
 
-async function inner(name, input, ctx, ms) {
+async function inner(name, input, ctx, ms, run = { timedOut: false }) {
   const project = ctx.project ?? findProject(input.cwd || ctx.cwd || process.cwd());
   if (!project) return '';
   const api = new Api(project.config.hub, project.config.token, { timeoutMs: Math.max(200, ms - 300) });
   const { root, dir } = project;
+  const save = (st) => {
+    if (!run.timedOut) saveState(dir, st);
+  };
 
   switch (name) {
     case 'session-start': {
       const st = loadState(dir);
-      const [state, ev] = await Promise.all([api.get('/api/state'), api.get(`/api/events?since=${st.cursor}&limit=50`)]);
-      const last = Math.max(st.cursor, ev.last_event_id ?? 0, state.last_event_id ?? 0);
+      const cursor = st.unreadable ? Infinity : st.cursor;
+      const [state, news] = await Promise.all([api.get('/api/state'), latestNews(api, cursor)]);
+      const last = Math.max(st.cursor, news.last_event_id, state.last_event_id ?? 0);
       st.cursor = last;
       st.urgent_cursor = Math.max(st.urgent_cursor, last);
+      st.shown = [];
       cacheSettings(st, state);
-      saveState(dir, st);
-      const body = [briefing(state), newsBlock(ev.events, state)].filter(Boolean).join('\n\n');
+      save(st);
+      const body = [briefing(state), newsBlock(news.events, state, { max: 40, older: news.older })].filter(Boolean).join('\n\n');
       return context('SessionStart', `${HEADER}\n${frame(body)}`);
     }
 
     case 'prompt': {
       const st = loadState(dir);
+      if (st.fresh || st.unreadable) {
+        // No trustworthy cursor: start from now instead of replaying the crew's whole history.
+        const state = await api.get('/api/state');
+        st.cursor = Math.max(st.cursor, state.last_event_id ?? 0);
+        st.urgent_cursor = Math.max(st.urgent_cursor, st.cursor);
+        st.shown = [];
+        cacheSettings(st, state);
+        save(st);
+        const asks = questionsBlock(state);
+        return asks ? context('UserPromptSubmit', frame(asks)) : '';
+      }
       const [ev, state] = await Promise.all([api.get(`/api/events?since=${st.cursor}&limit=50`), api.get('/api/state')]);
-      // Urgent events were already shown after an edit; don't repeat them.
-      const events = (ev.events || []).filter((e) => !(URGENT_KINDS.includes(e.kind) && e.id <= st.urgent_cursor));
+      // Events already shown after an edit are not repeated.
+      const seen = new Set(Array.isArray(st.shown) ? st.shown : []);
+      const events = (ev.events || []).filter((e) => !seen.has(e.id));
       const news = newsBlock(events, state);
       const asks = questionsBlock(state);
       const last = Math.max(st.cursor, ev.last_event_id ?? 0);
       st.cursor = last;
       st.urgent_cursor = Math.max(st.urgent_cursor, last);
+      st.shown = [...seen].filter((id) => id > last);
       cacheSettings(st, state);
-      saveState(dir, st);
+      save(st);
       if (!news && !asks) return '';
       return context('UserPromptSubmit', frame([news, asks].filter(Boolean).join('\n\n')));
     }
@@ -126,8 +150,11 @@ async function inner(name, input, ctx, ms) {
       const res = await api.post('/api/claims', { action: 'check', paths });
       const c = (res.conflicts || [])[0];
       if (!c) return '';
+      // This reason reaches the agent without a <team-data> frame, so teammate labels are reduced
+      // to inert characters.
+      const key = safeTaskKey(c.task_key);
       const reason =
-        `vibecrew: ${clip(c.member_name)} is working on ${c.path}${c.task_key ? ` (task ${c.task_key})` : ''}, held until ${clock(c.expires_at)}. ` +
+        `vibecrew: ${safeName(c.member_name)} is working on ${c.path}${key ? ` (task ${key})` : ''}, held until ${clock(c.expires_at)}. ` +
         'Ask them first with team_ask, or work on another file.';
       return JSON.stringify({
         hookSpecificOutput: {
@@ -142,14 +169,17 @@ async function inner(name, input, ctx, ms) {
       const rel = editedPath(input, root);
       if (!rel) return '';
       const st = loadState(dir);
+      const blind = st.fresh || st.unreadable;
       const since = Math.max(st.cursor, st.urgent_cursor);
-      const res = await api.post('/api/file-edit', { path: rel, since });
+      // Without a trustworthy cursor, skip the backlog rather than replay it.
+      const res = await api.post('/api/file-edit', blind ? { path: rel } : { path: rel, since });
       const me = project.config.member_id;
-      const events = (res.events || []).filter((e) => e.member_id !== me || e.kind === 'prompt_locked');
+      const events = blind ? [] : (res.events || []).filter((e) => e.member_id !== me || e.kind === 'prompt_locked');
       const parts = [];
       if (res.conflict) {
         const c = res.conflict;
-        parts.push(`Note: ${clip(c.member_name)} also holds ${c.path}${c.task_key ? ` (task ${c.task_key})` : ''}. Tell them (team_ask or team_post) so your changes don't collide.`);
+        const key = safeTaskKey(c.task_key);
+        parts.push(`Note: ${clip(c.member_name)} also holds ${c.path}${key ? ` (task ${key})` : ''}. Tell them (team_ask or team_post) so your changes don't collide.`);
       }
       if (events.length) {
         const state = await api.get('/api/state');
@@ -157,7 +187,9 @@ async function inner(name, input, ctx, ms) {
         parts.push(newsBlock(events, state, { urgentOnly: true }));
       }
       st.urgent_cursor = Math.max(st.urgent_cursor, res.last_event_id ?? since);
-      saveState(dir, st);
+      if (blind) st.cursor = Math.max(st.cursor, res.last_event_id ?? 0);
+      st.shown = [...(Array.isArray(st.shown) ? st.shown : []), ...events.map((e) => e.id)];
+      save(st);
       if (!parts.length) return '';
       return context('PostToolUse', frame(parts.join('\n\n')));
     }

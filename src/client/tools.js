@@ -3,6 +3,7 @@ import { Api, ApiError } from './api.js';
 import { loadState, saveState } from './config.js';
 import { gitInfo } from './git.js';
 import { frame, briefing, newsBlock, snapshotText, promptText, taskBoard, byId, clip, clock } from './format.js';
+import { latestNews } from './news.js';
 import { toRepoPath } from '../shared/paths.js';
 import { scrub } from '../shared/scrub.js';
 import { PROMPT_SECTIONS } from '../shared/protocol.js';
@@ -142,7 +143,7 @@ export const TOOLS = [
   {
     name: 'team_settings',
     description:
-      'Read or change how the crew works, when your user asks. assign_mode: self (people pick tasks), agent (the lead assigns), hybrid (the lead proposes, each person accepts). master_prompt_approval: all, majority or owner. claim_mode: ask (pause and ask the user before editing a file a teammate holds), block (refuse), warn (only tell). claim_ttl_min: how long claims last. lead: who the lead (main agent) is. my_strengths: what you are good at, used for assignments.',
+      'Read or change how the crew works, when your user asks. Crew-wide rules can only be changed by the crew owner: assign_mode (self: people pick tasks, agent: the lead assigns, hybrid: the lead proposes and each person accepts), master_prompt_approval (all, majority or owner), claim_mode (ask: pause and ask the user before editing a file a teammate holds, block: refuse, warn: only tell) and claim_ttl_min (how long claims last). Anyone can set lead (who the lead, the main agent, is) and my_strengths (what you are good at, used for assignments).',
     inputSchema: {
       type: 'object',
       properties: {
@@ -188,7 +189,9 @@ function friendly(e, hub) {
   if (e instanceof ApiError) {
     if (e.code === 'unreachable') return `Can't reach the vibecrew hub (${hub}) right now. Your own work is not blocked; carry on and try again later.`;
     if (e.status === 401) return 'This vibecrew membership is no longer valid (removed from the crew or reset). Ask your user to run `npx vibecrew doctor`.';
-    return `vibecrew: ${e.message}`;
+    // Hub messages can quote teammates' names and text, so they arrive framed like any team data.
+    const code = String(e.code ?? '').replace(/[^a-z0-9_]/gi, '').slice(0, 40) || 'error';
+    return `vibecrew: the hub refused that (${code}).\n${frame(e.message)}`;
   }
   return e?.message || String(e);
 }
@@ -206,13 +209,14 @@ export async function callTool(ctx, name, args = {}) {
 const HANDLERS = {
   async team_sync({ api, project }) {
     const st = loadState(project.dir);
-    const [state, ev] = await Promise.all([api.get('/api/state'), api.get(`/api/events?since=${st.cursor}&limit=100`)]);
-    const last = Math.max(st.cursor, ev.last_event_id ?? 0, state.last_event_id ?? 0);
+    const [state, news] = await Promise.all([api.get('/api/state'), latestNews(api, st.unreadable ? Infinity : st.cursor)]);
+    const last = Math.max(st.cursor, news.last_event_id, state.last_event_id ?? 0);
     st.cursor = last;
     st.urgent_cursor = Math.max(st.urgent_cursor, last);
+    st.shown = [];
     cacheSettings(st, state);
     saveState(project.dir, st);
-    return frame([briefing(state), newsBlock(ev.events, state)].filter(Boolean).join('\n\n'));
+    return frame([briefing(state), newsBlock(news.events, state, { max: 40, older: news.older })].filter(Boolean).join('\n\n'));
   },
 
   async team_post({ api }, args) {

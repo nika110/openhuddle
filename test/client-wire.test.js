@@ -140,6 +140,39 @@ test('wire: git hook removed cleanly', () => {
   }
 });
 
+test('wire: git hook leaves a non-shell post-commit hook alone', () => {
+  for (const original of ['#!/usr/bin/env node\nconsole.log("hi");\n', '#!/usr/bin/python3\nprint(1)\n', 'echo no shebang\n']) {
+    const repo = makeRepo();
+    try {
+      const hook = join(repo, '.git', 'hooks', 'post-commit');
+      writeFileSync(hook, original);
+      const res = wire.installGitHook(repo, CMD);
+      assert.equal(res.installed, false, original);
+      assert.match(res.reason, /not a shell script/);
+      assert.equal(readFileSync(hook, 'utf8'), original);
+      assert.equal(wire.wiringStatus(repo, { home }).git_hook, null, 'doctor should not flag it as broken');
+    } finally {
+      cleanup(repo);
+    }
+  }
+});
+
+test('wire: git hook inlines into sh, bash and zsh hooks', () => {
+  for (const shebang of ['#!/bin/sh', '#!/usr/bin/env bash', '#!/bin/zsh', '#! /bin/dash']) {
+    const repo = makeRepo();
+    try {
+      const hook = join(repo, '.git', 'hooks', 'post-commit');
+      writeFileSync(hook, `${shebang}\necho existing\n`);
+      assert.equal(wire.installGitHook(repo, CMD).installed, true, shebang);
+      const text = readFileSync(hook, 'utf8');
+      assert.ok(text.startsWith(`${shebang}\n# >>> vibecrew`), text);
+      assert.equal(wire.wiringStatus(repo, { home }).git_hook, true);
+    } finally {
+      cleanup(repo);
+    }
+  }
+});
+
 test('wire: git hook skipped when hooks live in the work tree', () => {
   const repo = makeRepo();
   try {

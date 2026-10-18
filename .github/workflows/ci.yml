@@ -23,3 +23,29 @@ jobs:
           git config --global user.email ci@example.com
           git config --global user.name ci
       - run: npm test
+
+  # Crew members only need Node 20; the hub (node:sqlite) needs 22.13+. These suites never load the hub.
+  client-node20:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: git identity for test repos
+        run: |
+          git config --global user.email ci@example.com
+          git config --global user.name ci
+      - run: node --test test/shared.test.js test/client-core.test.js test/client-wire.test.js test/pages.test.js
+      - name: the hub explains its Node requirement
+        shell: bash
+        run: |
+          set +e
+          out=$(node bin/vibecrew.js hub --port 0 2>&1)
+          code=$?
+          echo "$out"
+          test $code -eq 1 && echo "$out" | grep -q "Node 22.13 or newer"

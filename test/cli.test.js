@@ -1,10 +1,10 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { main, parseInvite } from '../src/client/cli.js';
+import { main, parseInvite, browserCommand } from '../src/client/cli.js';
 import { VERSION } from '../src/shared/protocol.js';
 import { makeRepo, makeHome, tempDir, cleanup, git, safeEnv } from './helpers/client.js';
 import { startTestHub } from './helpers/hub.js';
@@ -110,6 +110,50 @@ test('cli: create prints invite and writes config', async () => {
   const again = capture(repoA);
   assert.equal(await main(['create', '--hub', hub.url], again), 1);
   assert.ok(again.stderr.includes('already in the crew'));
+});
+
+test('cli: dash builds the URL locally and ignores a hostile dashboard_url', async () => {
+  const file = join(repoA, '.vibecrew', 'config.json');
+  const original = readFileSync(file, 'utf8');
+  const cfg = JSON.parse(original);
+  assert.equal(cfg.dashboard_url, undefined, 'hub-provided URLs are not stored');
+  try {
+    writeFileSync(file, JSON.stringify({ ...cfg, dashboard_url: 'https://x/t/y" & calc & "' }));
+    const io = capture(repoA);
+    assert.equal(await main(['dash', '--no-open'], io), 0, io.stderr);
+    assert.ok(io.stdout.includes(`${hub.url}/t/${cfg.team_id}#k=${cfg.token}`), io.stdout);
+    assert.ok(!io.stdout.includes('calc'));
+    writeFileSync(file, JSON.stringify({ ...cfg, hub: 'file:///etc' }));
+    const bad = capture(repoA);
+    assert.equal(await main(['dash', '--no-open'], bad), 1);
+  } finally {
+    writeFileSync(file, original);
+  }
+});
+
+test('cli: parseInvite only accepts http(s) links', () => {
+  assert.equal(parseInvite('file:///join/tabc.secret'), null);
+  assert.equal(parseInvite('javascript:alert(1)//join/tabc.secret'), null);
+  assert.equal(parseInvite('https://crew.example.com/join/tabc.secret').hub, 'https://crew.example.com');
+});
+
+test('cli: browser opens without a shell', () => {
+  const url = 'https://x.example/t/tabc#k=vc_x';
+  assert.deepEqual(browserCommand(url, 'win32'), ['rundll32', ['url.dll,FileProtocolHandler', url]]);
+  assert.deepEqual(browserCommand(url, 'darwin'), ['open', [url]]);
+  assert.deepEqual(browserCommand(url, 'linux'), ['xdg-open', [url]]);
+});
+
+test('cli: hub explains when node:sqlite is missing', async () => {
+  const io = capture(tempDir(), {
+    importModule: async (m) => {
+      if (m === 'node:sqlite') throw new Error('No such built-in module: node:sqlite');
+      return import(m);
+    },
+  });
+  assert.equal(await main(['hub', '--port', '0'], io), 1);
+  assert.match(io.stderr, /Node 22\.13 or newer/);
+  cleanup(io.cwd);
 });
 
 test('cli: join with invite writes config for second member', async () => {

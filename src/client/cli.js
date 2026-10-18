@@ -6,7 +6,7 @@ import { existsSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { VERSION, DEFAULT_HUB } from '../shared/protocol.js';
 import { Api, ApiError } from './api.js';
-import { findProject, saveConfig, removeConfig } from './config.js';
+import { findProject, saveConfig, removeConfig, dashboardUrl } from './config.js';
 import { gitRoot, originUrl, gitUserName, clone, isCloneableUrl } from './git.js';
 import { wireAll, unwireAll, detectTools, wiringStatus } from './wire.js';
 import { runMcp } from './mcp.js';
@@ -61,6 +61,7 @@ function makeIo(io) {
     env: io.env ?? process.env,
     home: io.home ?? homedir(),
     stdin: io.stdin ?? process.stdin,
+    importModule: io.importModule ?? ((m) => import(m)),
     out: (s = '') => (io.out ?? write(process.stdout))(s + '\n'),
     err: (s = '') => (io.err ?? write(process.stderr))(s + '\n'),
     real: !io.out,
@@ -150,6 +151,7 @@ export function parseInvite(link, hubOverride) {
   const s = String(link || '').trim();
   try {
     const u = new URL(s);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
     const i = u.pathname.indexOf('/join/');
     if (i !== -1) {
       const code = decodeURIComponent(u.pathname.slice(i + 6).replace(/\/+$/, ''));
@@ -209,9 +211,9 @@ const COMMANDS = {
       member_id: res.member_id,
       member_name: res.member_name,
       token: res.token,
-      dashboard_url: res.dashboard_url,
     });
     const lines = wireAll(root, { home: ctx.home, tools, claudeCli: claudeCli(ctx) });
+    const dash = dashboardUrl(findProject(root)?.config);
     ctx.out(`Crew "${res.team_name}" is ready. You are ${res.member_name} (owner).`);
     ctx.out('');
     ctx.out('Send this to your friends:');
@@ -223,7 +225,7 @@ const COMMANDS = {
     }
     printWired(ctx, lines);
     ctx.out('');
-    ctx.out(`Live dashboard (your personal link, don't share it): ${res.dashboard_url}`);
+    if (dash) ctx.out(`Live dashboard (your personal link, don't share it): ${dash}`);
     ctx.out('');
     ctx.out('Next: open your AI tool in this folder and say "let\'s write the master prompt".');
     return 0;
@@ -280,14 +282,14 @@ const COMMANDS = {
       member_id: res.member_id,
       member_name: res.member_name,
       token: res.token,
-      dashboard_url: res.dashboard_url,
     });
     const lines = wireAll(root, { home: ctx.home, tools, claudeCli: claudeCli(ctx) });
+    const dash = dashboardUrl(findProject(root)?.config);
     ctx.out(`Joined the crew "${res.team_name}" as ${res.member_name}. Your teammates can see you now.`);
     ctx.out('');
     printWired(ctx, lines);
     ctx.out('');
-    ctx.out(`Live dashboard (your personal link, don't share it): ${res.dashboard_url}`);
+    if (dash) ctx.out(`Live dashboard (your personal link, don't share it): ${dash}`);
     ctx.out('');
     ctx.out(`Next: open your AI tool in ${root} and say "what is the crew doing?".`);
     return 0;
@@ -353,8 +355,12 @@ const COMMANDS = {
   async dash(ctx, flags) {
     const project = needProject(ctx, flags);
     if (!project) return 1;
-    const c = project.config;
-    const url = c.dashboard_url || `${c.hub}/t/${c.team_id}#k=${c.token}`;
+    // Built from local config only; never from anything the hub sent.
+    const url = dashboardUrl(project.config);
+    if (!url) {
+      ctx.err('The vibecrew config in this project looks wrong (the hub must be an http or https address). Run `npx vibecrew doctor`, or leave and join again.');
+      return 1;
+    }
     ctx.out(`Dashboard (your personal link, don't share it — share \`npx vibecrew invite\` instead):`);
     ctx.out(`  ${url}`);
     if (!flags['no-open'] && ctx.real) openBrowser(url);
@@ -406,7 +412,8 @@ const COMMANDS = {
     mark(w.claude_hooks, 'Claude Code hooks', 'run `npx vibecrew doctor --fix`');
     if (w.codex !== null) mark(w.codex, 'Codex MCP entry', 'run `npx vibecrew doctor --fix`');
     if (w.cursor !== null) mark(w.cursor, 'Cursor MCP entry', 'run `npx vibecrew doctor --fix`');
-    mark(w.git_hook, 'git post-commit hook', 'run `npx vibecrew doctor --fix`');
+    if (w.git_hook === null) ctx.out('  --  git post-commit hook: skipped (your existing hook is not a shell script, or hooks live in the repo)');
+    else mark(w.git_hook, 'git post-commit hook', 'run `npx vibecrew doctor --fix`');
     return ok ? 0 : 1;
   },
 
@@ -440,6 +447,11 @@ const COMMANDS = {
   },
 
   async hub(ctx, flags) {
+    if (!(await sqliteAvailable(ctx))) {
+      ctx.err(`The hub needs Node 22.13 or newer (it uses the built-in node:sqlite); you have ${process.version}.`);
+      ctx.err('Crew members only need Node 20; this is just for running your own hub.');
+      return 1;
+    }
     const { startHub } = await import('../hub/server.js');
     const port = Number(flags.port ?? ctx.env.PORT ?? 8787);
     const hub = await startHub({
@@ -495,6 +507,25 @@ const COMMANDS = {
   },
 };
 
+async function sqliteAvailable(ctx) {
+  // node:sqlite announces itself with an ExperimentalWarning on some versions; this probe
+  // should not print it.
+  const emit = process.emitWarning;
+  process.emitWarning = function (warning, ...rest) {
+    const type = typeof rest[0] === 'string' ? rest[0] : rest[0]?.type;
+    if (type === 'ExperimentalWarning' && String(warning).includes('SQLite')) return;
+    return emit.call(process, warning, ...rest);
+  };
+  try {
+    await ctx.importModule('node:sqlite');
+    return true;
+  } catch {
+    return false;
+  } finally {
+    process.emitWarning = emit;
+  }
+}
+
 function readStdin(stream, ms = 1500) {
   if (!stream || stream.isTTY) return Promise.resolve('');
   return new Promise((resolveRead) => {
@@ -524,11 +555,18 @@ function readStdin(stream, ms = 1500) {
   });
 }
 
+// Opens a URL with no shell in between, so nothing in it can be read as a command.
+export function browserCommand(url, platform = process.platform) {
+  if (platform === 'win32') return ['rundll32', ['url.dll,FileProtocolHandler', url]];
+  if (platform === 'darwin') return ['open', [url]];
+  return ['xdg-open', [url]];
+}
+
 function openBrowser(url) {
   try {
-    const opts = { detached: true, stdio: 'ignore', windowsHide: true };
-    if (process.platform === 'win32') spawn('cmd', ['/c', 'start', '""', `"${url}"`], { ...opts, windowsVerbatimArguments: true }).unref();
-    else if (process.platform === 'darwin') spawn('open', [url], opts).unref();
-    else spawn('xdg-open', [url], opts).unref();
+    const [cmd, args] = browserCommand(url);
+    const child = spawn(cmd, args, { detached: true, stdio: 'ignore', windowsHide: true, shell: false });
+    child.on('error', () => {});
+    child.unref();
   } catch {}
 }

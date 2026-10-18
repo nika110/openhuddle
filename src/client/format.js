@@ -8,6 +8,24 @@ export function frame(text) {
   return `${FRAME_OPEN}\n${safe}\n${FRAME_CLOSE}`;
 }
 
+// For text that reaches an agent outside a <team-data> frame (hook decision reasons):
+// letters, digits, space and . _ ' - only, so a name cannot read like a command.
+export function safeName(s, n = 40) {
+  const t = String(s ?? '')
+    .normalize('NFC')
+    .replace(/[^\p{L}\p{M}\p{N} ._'-]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, n)
+    .trim();
+  return t || 'a teammate';
+}
+
+export function safeTaskKey(key) {
+  const k = String(key ?? '');
+  return /^[A-Z][A-Z0-9_-]{0,15}$/.test(k) ? k : null;
+}
+
 // Teammate-chosen names show up in prose; keep them short and single-line.
 export function clip(s, n = 40) {
   const t = String(s ?? '').replace(/[\u0000-\u001f\u007f]+/g, ' ').trim();
@@ -213,7 +231,7 @@ export function briefing(state) {
   return lines.join('\n');
 }
 
-export function newsBlock(events, state, { urgentOnly = false, max = 20 } = {}) {
+export function newsBlock(events, state, { urgentOnly = false, max = 20, older = false } = {}) {
   const meId = state?.me?.id;
   const list = (events || []).filter((e) => e.member_id !== meId || e.kind === 'prompt_locked' || e.kind === 'lead_changed');
   if (!list.length) return '';
@@ -221,7 +239,8 @@ export function newsBlock(events, state, { urgentOnly = false, max = 20 } = {}) 
   const tasks = byKey(state?.tasks);
   const shown = list.slice(-max);
   const lines = [urgentOnly ? 'Heads-up from your crew:' : 'What changed since you last looked:'];
-  if (list.length > shown.length) lines.push(`(${list.length - shown.length} older updates skipped — call team_sync for the full picture)`);
+  if (older) lines.push('(older updates not shown — the dashboard has the full feed)');
+  else if (list.length > shown.length) lines.push(`(${list.length - shown.length} older updates skipped — call team_sync for the full picture)`);
   for (const e of shown) lines.push(`- ${eventLine(e, members, tasks)}`);
   return lines.join('\n');
 }

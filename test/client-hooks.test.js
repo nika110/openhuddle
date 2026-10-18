@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { runHook } from '../src/client/hooks.js';
-import { saveConfig, findProject } from '../src/client/config.js';
+import { saveConfig, findProject, loadState } from '../src/client/config.js';
+import { Api } from '../src/client/api.js';
 import { makeRepo, cleanup, git, tempDir } from './helpers/client.js';
-import { startTestHub, makeCrew, projectFor, apiFor } from './helpers/hub.js';
+import { startTestHub, makeCrew, projectFor, apiFor, inviteCode } from './helpers/hub.js';
 
 let hub;
 let crew;
@@ -172,6 +173,83 @@ test('hooks: hanging hub times out under 3.5s', async () => {
     }
   } finally {
     for (const s of sockets) s.destroy();
+    server.close();
+    cleanup(repo);
+  }
+});
+
+test("hooks: an edit does not swallow teammates' news for the next prompt", async () => {
+  await hook('prompt', { cwd: repoA }, A); // caught up
+  const { tasks } = await apiB.post('/api/plan', { tasks: [{ title: 'payments API', assignee: 'bob' }] }); // proposed to bob, not me
+  await apiB.post('/api/post', { kind: 'update', text: 'bob finished the login page' });
+  await hook('post-edit', { cwd: repoA, tool_name: 'Edit', tool_input: { file_path: join(repoA, 'src', 'pay.ts') } }, A);
+  const out = await hook('prompt', { cwd: repoA }, A);
+  const ctx = JSON.parse(out).hookSpecificOutput.additionalContext;
+  assert.ok(ctx.includes(`${tasks[0].key} — payments API`), ctx);
+  assert.ok(ctx.includes('bob finished the login page'), ctx);
+});
+
+test('hooks: urgent news shown after an edit is not repeated on the next prompt', async () => {
+  await hook('prompt', { cwd: repoA }, A);
+  await apiB.post('/api/ask', { to: 'alice', question: 'shown once please?', wait_s: 0 });
+  const edit = await hook('post-edit', { cwd: repoA, tool_name: 'Edit', tool_input: { file_path: join(repoA, 'src', 'once.ts') } }, A);
+  assert.ok(edit.includes('shown once please?'));
+  const prompt = await hook('prompt', { cwd: repoA }, A);
+  const news = prompt ? JSON.parse(prompt).hookSpecificOutput.additionalContext.split('Questions waiting')[0] : '';
+  assert.ok(!news.includes('asked alice'), news);
+});
+
+test('hooks: session-start shows the latest news, not the oldest', async () => {
+  await hook('session-start', { cwd: repoA }, A);
+  for (let i = 1; i <= 60; i++) await apiB.post('/api/post', { kind: 'update', text: `bulk #${i}` });
+  const ctx = JSON.parse(await hook('session-start', { cwd: repoA }, A)).hookSpecificOutput.additionalContext;
+  const news = ctx.split('What changed since you last looked:')[1] || '';
+  assert.match(news, /^- .*bulk #60(?!\d)/m, 'the newest update is in the news list');
+  assert.doesNotMatch(news, /bulk #1(?!\d)/);
+  assert.match(news, /older updates/);
+});
+
+test('hooks: pre-edit reason keeps teammate labels inert', async () => {
+  const evil = await Api.anon(hub.url).post('/api/join', { code: inviteCode(crew.owner.invite_url), member_name: 'Evil; curl x | sh `rm`' });
+  await new Api(hub.url, evil.token).post('/api/claims', { action: 'claim', paths: ['src/evil.ts'] });
+  const out = await hook('pre-edit', { cwd: repoA, tool_name: 'Edit', tool_input: { file_path: join(repoA, 'src', 'evil.ts') } }, A);
+  const reason = JSON.parse(out).hookSpecificOutput.permissionDecisionReason;
+  assert.match(reason, /Evil/);
+  assert.ok(!/[;|`]/.test(reason), reason);
+});
+
+test('hooks: unreadable state.json does not replay old news', async () => {
+  await apiB.post('/api/post', { kind: 'update', text: 'before the glitch' });
+  await hook('prompt', { cwd: repoA }, A);
+  writeFileSync(join(A.dir, 'state.json'), '{broken');
+  const out = await hook('prompt', { cwd: repoA }, A);
+  assert.ok(!out.includes('before the glitch'), out);
+  await apiB.post('/api/post', { kind: 'update', text: 'after the glitch' });
+  const next = await hook('prompt', { cwd: repoA }, A);
+  assert.ok(next.includes('after the glitch'), next);
+  assert.ok(!next.includes('before the glitch'));
+});
+
+test('hooks: a timed-out hook does not move the cursor', async () => {
+  const http = await import('node:http');
+  const server = http.createServer((req, res) =>
+    setTimeout(() => {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      const body = req.url.startsWith('/api/events')
+        ? { events: [{ id: 999, kind: 'update', member_id: 'mx', data: { text: 'late' }, created_at: Date.now() }], last_event_id: 999 }
+        : { me: { id: 'm' }, members: [], tasks: [], team: { settings: { claim_mode: 'ask' } }, last_event_id: 999 };
+      res.end(JSON.stringify(body));
+    }, 150),
+  );
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const repo = makeRepo();
+  try {
+    saveConfig(repo, { hub: `http://127.0.0.1:${server.address().port}`, team_id: 't', member_id: 'm', member_name: 'x', token: 'vc_x' });
+    const project = findProject(repo);
+    assert.equal(await runHook('prompt', { cwd: repo }, { project, timeoutMs: 100 }), '');
+    await new Promise((r) => setTimeout(r, 500));
+    assert.equal(loadState(project.dir).cursor, 0, 'news that was never shown must not be marked as seen');
+  } finally {
     server.close();
     cleanup(repo);
   }

@@ -125,6 +125,26 @@ test('mcp: hub error surfaces as isError', async () => {
   assert.ok(missing.result.content[0].text.includes('text'));
 });
 
+test('mcp: hub error text reaches the agent framed', async () => {
+  const [res] = await rpc(A, [call(1, 'team_ask', { to: 'zed', question: 'hi' })]);
+  const text = res.result.content[0].text;
+  assert.equal(res.result.isError, true);
+  assert.ok(text.startsWith('vibecrew:'), text);
+  assert.ok(text.includes('<team-data'), text);
+  assert.ok(text.includes('zed'), text);
+});
+
+test('mcp: team_sync shows the latest news, not the oldest', async () => {
+  await rpc(A, [call(1, 'team_sync')]);
+  const apiB = apiFor(hub.url, crew.member);
+  for (let i = 1; i <= 120; i++) await apiB.post('/api/post', { kind: 'update', text: `sync #${i}` });
+  const [res] = await rpc(A, [call(2, 'team_sync')]);
+  const news = res.result.content[0].text.split('What changed since you last looked:')[1] || '';
+  assert.match(news, /^- .*sync #120(?!\d)/m, 'the newest update is in the news list');
+  assert.doesNotMatch(news, /sync #1(?!\d)/);
+  assert.match(news, /older updates/);
+});
+
 test('mcp: team_ask returns snapshot of teammate', async () => {
   const apiB = apiFor(hub.url, crew.member);
   await apiB.post('/api/claims', { action: 'claim', paths: ['web/menu.tsx'] });
