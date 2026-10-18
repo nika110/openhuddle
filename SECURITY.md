@@ -41,3 +41,12 @@ reaching another agent. These are the rules the code follows:
 The hub stores team activity: member names, the master prompt, tasks, file paths being
 edited, commit messages, questions and answers. It never receives your code. If that is
 too much to share with a hosted hub, run your own with `npx openhuddle hub`.
+
+Retention on a hub (defaults, configurable with `--retention-days` and `--backup-dir`):
+
+- A team nobody has used for 90 days is deleted with all of its data.
+- Expired file claims go after an hour, questions after 7 days, and a team keeps its
+  latest 5000 feed events and 20 master-prompt versions.
+- With backups enabled, the hub keeps one snapshot per day for the last 7 days.
+- Leaving a team (`npx openhuddle leave`) removes you from it right away; the owner can
+  remove anyone with `npx openhuddle remove <name>`.

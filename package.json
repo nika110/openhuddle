@@ -1,6 +1,6 @@
 {
   "name": "openhuddle",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Multiplayer mode for AI coding agents. Your team's Claude Code, Codex and Cursor agents share live status, one master prompt, a task board and file claims.",
   "type": "module",
   "bin": {
@@ -10,6 +10,7 @@
     "bin",
     "src",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "engines": {

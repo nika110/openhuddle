@@ -92,10 +92,33 @@ CREATE TABLE IF NOT EXISTS asks (
 );
 `;
 
+// Schema changes are appended here, never edited: entry N upgrades a database from N-1 to N.
+// Version 1 is the 0.1.0 schema; databases from 0.1.0 carry no stamp (0) and upgrade in place.
+const MIGRATIONS = [null, SCHEMA];
+export const SCHEMA_VERSION = MIGRATIONS.length - 1;
+
 export function openDb(path = ':memory:') {
   const db = new DatabaseSync(path);
   if (path !== ':memory:') db.exec('PRAGMA journal_mode = WAL;');
   db.exec('PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
-  db.exec(SCHEMA);
+  const current = db.prepare('PRAGMA user_version').get().user_version;
+  if (current > SCHEMA_VERSION) {
+    db.close();
+    throw new Error(
+      `This database was written by a newer version of OpenHuddle (schema ${current}, this hub knows ${SCHEMA_VERSION}). Upgrade the hub instead of downgrading.`,
+    );
+  }
+  for (let v = current + 1; v <= SCHEMA_VERSION; v++) {
+    db.exec('BEGIN');
+    try {
+      db.exec(MIGRATIONS[v]);
+      db.exec(`PRAGMA user_version = ${v}`);
+      db.exec('COMMIT');
+    } catch (err) {
+      db.exec('ROLLBACK');
+      db.close();
+      throw err;
+    }
+  }
   return db;
 }

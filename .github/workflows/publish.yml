@@ -1,0 +1,32 @@
+name: publish
+
+# Publishing a GitHub release publishes the same version to npm. Uses npm trusted publishing
+# (OIDC), so no npm token is stored anywhere; the package is configured on npmjs.com to trust
+# this workflow. Releases also get npm provenance.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - name: npm with trusted publishing support
+        run: npm install -g npm@latest
+      - name: git identity for test repos
+        run: |
+          git config --global user.email ci@example.com
+          git config --global user.name ci
+      - run: npm test
+      - name: release tag matches package.json
+        run: test "v$(node -p "require('./package.json').version")" = "${GITHUB_REF_NAME}"
+      - run: npm publish --provenance --access public

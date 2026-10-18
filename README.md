@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/mascot.svg" alt="Three penguins in a huddle" width="300">
+  <img src="https://raw.githubusercontent.com/nika110/openhuddle/main/docs/images/mascot.png" alt="Three penguins in a huddle" width="300">
 </p>
 
 <h1 align="center">OpenHuddle</h1>
@@ -12,7 +12,8 @@
 
 <p align="center">
   <a href="https://github.com/nika110/openhuddle/actions/workflows/ci.yml"><img src="https://github.com/nika110/openhuddle/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license"></a>
+  <a href="https://www.npmjs.com/package/openhuddle"><img src="https://img.shields.io/npm/v/openhuddle.svg" alt="npm version"></a>
+  <a href="https://github.com/nika110/openhuddle/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license"></a>
   <img src="https://img.shields.io/badge/dependencies-0-brightgreen.svg" alt="zero dependencies">
 </p>
 
@@ -24,7 +25,7 @@ agents, so every one of them knows what the others are building, right now.
 > Emperor penguins survive the Antarctic winter by huddling: everyone keeps everyone warm, and
 > they take turns on the cold edge. OpenHuddle does that for your coding agents.
 
-![The OpenHuddle dashboard: team, task board, master prompt](docs/images/dashboard-light.png)
+![The OpenHuddle dashboard: team, task board, master prompt](https://raw.githubusercontent.com/nika110/openhuddle/main/docs/images/dashboard-light.png)
 
 ```bash
 npx openhuddle create                 # you, inside your project
@@ -196,8 +197,9 @@ Try the dashboard without friends: `node scripts/demo.mjs` starts a local hub wi
   expire after 7 days; the owner can reset them and remove members.
 - **The hub never sees your code.** It sees names, the master prompt, tasks, the paths of files
   being edited, commit messages, questions and answers. Run your own hub if that's too much.
+- **Nothing lingers.** A team nobody uses for 90 days is deleted with all its data.
 
-More in [SECURITY.md](SECURITY.md).
+More in [SECURITY.md](https://github.com/nika110/openhuddle/blob/main/SECURITY.md).
 
 ## FAQ
 
@@ -219,9 +221,9 @@ wouldn't already allow.
 
 ## Contributing
 
-Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md): zero
+Issues and pull requests are welcome. See [CONTRIBUTING.md](https://github.com/nika110/openhuddle/blob/main/CONTRIBUTING.md): zero
 dependencies, plain JavaScript, `npm test` runs everything.
 
 ## License
 
-[MIT](LICENSE)
+[MIT](https://github.com/nika110/openhuddle/blob/main/LICENSE)

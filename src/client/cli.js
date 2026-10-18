@@ -33,7 +33,8 @@ Other commands:
   remove <name>     remove a teammate from the team (owner only)
   doctor [--fix]    check the setup (and repair it)
   leave             leave the team and remove OpenHuddle from this project
-  hub               run your own hub (--port, --db, --public-url, --trust-proxy)
+  hub               run your own hub (--port, --db, --public-url, --trust-proxy,
+                    --backup-dir, --retention-days; 0 keeps inactive teams forever)
 
 Options: --hub <url> (or OPENHUDDLE_HUB) picks a self-hosted hub.`;
 
@@ -46,6 +47,8 @@ const OPTIONS = {
   db: { type: 'string' },
   'public-url': { type: 'string' },
   'trust-proxy': { type: 'boolean' },
+  'backup-dir': { type: 'string' },
+  'retention-days': { type: 'string' },
   rotate: { type: 'boolean' },
   fix: { type: 'boolean' },
   dir: { type: 'string' },
@@ -470,6 +473,8 @@ const COMMANDS = {
       dbPath: flags.db || ctx.env.OPENHUDDLE_DB || join(ctx.cwd, 'openhuddle-hub.db'),
       publicUrl: flags['public-url'] || ctx.env.OPENHUDDLE_PUBLIC_URL,
       trustProxy: !!flags['trust-proxy'] || ctx.env.OPENHUDDLE_TRUST_PROXY === '1',
+      backupDir: flags['backup-dir'] || ctx.env.OPENHUDDLE_BACKUP_DIR || undefined,
+      retentionDays: Number(flags['retention-days'] ?? ctx.env.OPENHUDDLE_RETENTION_DAYS ?? 90),
     });
     ctx.out(`openhuddle hub ${VERSION} listening on ${hub.url}`);
     await new Promise((done) => {

@@ -1,4 +1,6 @@
 import { timingSafeEqual } from 'node:crypto';
+import { mkdirSync, readdirSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
 import { newId, newToken, newSecret, sha256 } from '../shared/ids.js';
 import {
   DEFAULTS,
@@ -10,6 +12,7 @@ import {
   INVITE_TTL_MS,
   URGENT_KINDS,
   PROMPT_SECTIONS,
+  VERSION,
 } from '../shared/protocol.js';
 import { HubError, badRequest, forbidden, notFound, conflict } from './errors.js';
 import { cleanText, cleanName, safeName, parse } from './text.js';
@@ -37,7 +40,8 @@ function sameSecret(a, b) {
 }
 
 export class Hub {
-  constructor(db, { publicUrl = 'http://localhost:8787', now = Date.now } = {}) {
+  constructor(db, { publicUrl = 'http://localhost:8787', now = Date.now, retentionDays = 90 } = {}) {
+    this.retentionDays = retentionDays;
     this.db = db;
     this.publicUrl = publicUrl.replace(/\/+$/, '');
     this.now = now;
@@ -354,6 +358,7 @@ export class Hub {
       claims: claims.activeClaims(this, member.team_id),
       asks_for_me: asks.asksFor(this, member),
       last_event_id: this.lastEventId(member.team_id),
+      hub_version: VERSION,
     };
   }
 
@@ -515,11 +520,41 @@ export class Hub {
     });
   }
 
-  // Housekeeping the server runs every few minutes: expired claims and week-old questions go.
+  // Housekeeping the server runs every few minutes: expired claims and week-old questions go,
+  // and so do teams nobody has touched for retentionDays (0 keeps everything).
   sweep() {
     const now = this.now();
     this.run('DELETE FROM claims WHERE expires_at < ?', now - 3600_000);
     this.run('DELETE FROM asks WHERE created_at < ?', now - 7 * 24 * 3600_000);
+    if (this.retentionDays > 0) {
+      const cutoff = now - this.retentionDays * 24 * 3600_000;
+      const stale = this.all(
+        'SELECT t.id FROM teams t WHERE t.created_at < ? AND NOT EXISTS (SELECT 1 FROM members m WHERE m.team_id = t.id AND m.last_seen >= ?)',
+        cutoff,
+        cutoff,
+      );
+      for (const { id } of stale) this.deleteTeam(id);
+    }
+  }
+
+  deleteTeam(teamId) {
+    this.tx(() => {
+      for (const table of ['events', 'prompt_versions', 'tasks', 'claims', 'asks', 'members']) {
+        this.run(`DELETE FROM ${table} WHERE team_id = ?`, teamId);
+      }
+      this.run('DELETE FROM teams WHERE id = ?', teamId);
+    });
+  }
+
+  // A consistent copy of the whole hub as dir/hub-YYYY-MM-DD.db; keeps the newest 7.
+  backup(dir) {
+    mkdirSync(dir, { recursive: true });
+    const file = join(dir, `hub-${new Date(this.now()).toISOString().slice(0, 10)}.db`);
+    rmSync(file, { force: true });
+    this.db.exec(`VACUUM INTO '${file.replace(/'/g, "''")}'`);
+    const all = readdirSync(dir).filter((f) => /^hub-\d{4}-\d{2}-\d{2}\.db$/.test(f)).sort();
+    for (const old of all.slice(0, -7)) rmSync(join(dir, old), { force: true });
+    return file;
   }
 
   // ---- delegated domain ---------------------------------------------------------

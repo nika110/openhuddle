@@ -6,7 +6,7 @@ import { spawn } from 'node:child_process';
 import { findProject, saveConfig, loadState, saveState, removeConfig, dashboardUrl } from '../src/client/config.js';
 import { Api, ApiError } from '../src/client/api.js';
 import { gitRoot, gitInfo, originUrl, hooksDir } from '../src/client/git.js';
-import { frame, eventLine, briefing, newsBlock, snapshotText, safeName, safeTaskKey } from '../src/client/format.js';
+import { frame, eventLine, briefing, newsBlock, snapshotText, safeName, safeTaskKey, newerVersion } from '../src/client/format.js';
 import { makeRepo, tempDir, cleanup, git } from './helpers/client.js';
 
 const CFG = { hub: 'http://localhost:1', team_id: 'tabc', member_id: 'm1', member_name: 'nika', token: 'vc_x' };
@@ -236,6 +236,23 @@ test('format: briefing lists online members, prompt state, my tasks, questions f
   assert.ok(text.includes('Q3'));
   assert.ok(text.includes('why JWT?'));
   assert.ok(text.includes('T3')); // open task listed
+});
+
+test('format: briefing tells the agent when the hub runs a newer OpenHuddle', () => {
+  const st = sampleState();
+  st.hub_version = '99.0.0';
+  assert.match(briefing(st), /npx openhuddle@latest doctor --fix/);
+  st.hub_version = '0.0.1';
+  assert.doesNotMatch(briefing(st), /doctor --fix/);
+  delete st.hub_version;
+  assert.doesNotMatch(briefing(st), /doctor --fix/);
+});
+
+test('format: newerVersion compares numerically', () => {
+  assert.equal(newerVersion('0.10.0', '0.9.9'), true);
+  assert.equal(newerVersion('1.0.0', '1.0.0'), false);
+  assert.equal(newerVersion('0.2.0-beta', '0.1.0'), true);
+  assert.equal(newerVersion('nonsense', '0.1.0'), false);
 });
 
 test('format: briefing names the lead from settings.lead_id', () => {

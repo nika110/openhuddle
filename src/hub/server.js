@@ -104,10 +104,23 @@ export async function startHub({
   publicUrl,
   trustProxy = false,
   now,
+  backupDir,
+  retentionDays = 90,
   log = (...args) => console.error(...args),
 } = {}) {
   const db = openDb(dbPath);
-  const hub = new Hub(db, { publicUrl: publicUrl || 'http://localhost', now });
+  const hub = new Hub(db, { publicUrl: publicUrl || 'http://localhost', now, retentionDays });
+  const backup = () => {
+    if (!backupDir) return;
+    try {
+      hub.backup(backupDir);
+    } catch (err) {
+      log('openhuddle hub: backup failed:', err);
+    }
+  };
+  backup();
+  const backups = setInterval(backup, 24 * 3600_000);
+  backups.unref();
   const streams = new Set();
   const memberStreams = new Map();
   const openLimiter = new Limiter(20, 3600_000);
@@ -350,6 +363,7 @@ export async function startHub({
 
   async function close() {
     clearInterval(sweeper);
+    clearInterval(backups);
     for (const res of streams) res.end();
     streams.clear();
     await new Promise((resolve) => {
