@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "openhuddle",
-      "description": "Your team's AI coding agents share live status, a co-written master prompt, a task board and file claims, and can ask each other questions.",
+      "description": "Your team's AI coding agents brainstorm and review together in huddles, share a co-written master prompt and a task board, claim files and ask each other questions.",
       "source": "./",
       "category": "productivity"
     }

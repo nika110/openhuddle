@@ -143,6 +143,16 @@ function describe(ev, members, tasks) {
       return `${nameOf(members, d.lead_id)} is now the lead (main agent)`;
     case 'member_removed':
       return `${clip(d.name) || nameOf(members, d.member_id)} was removed from the team`;
+    case 'huddle_started':
+      return `${who} started a ${d.kind ?? ''} huddle ${d.huddle_id}: ${d.topic ?? ''}`;
+    case 'huddle_post':
+      return d.post_kind === 'idea'
+        ? `${who} added idea #${d.seq} to ${d.huddle_id}: ${d.text ?? ''}`
+        : `${who} in ${d.huddle_id}${d.on ? ` on idea #${d.on}` : ''}: ${d.text ?? ''}`;
+    case 'huddle_vote':
+      return `${who} ${d.value > 0 ? 'backed' : 'pushed back on'} idea #${d.seq} in ${d.huddle_id}${d.note ? `: ${d.note}` : ''}`;
+    case 'huddle_closed':
+      return `${who} closed ${d.huddle_id} (${d.topic ?? ''})${d.decision ? ` — decided: ${d.decision}${d.why ? ` — why: ${d.why}` : ''}` : ''}`;
     default:
       return `${who}: ${ev.kind}`;
   }
@@ -244,6 +254,80 @@ export function briefing(state) {
     lines.push('');
     lines.push('Questions waiting for your answer (use team_reply):');
     for (const a of asks) lines.push(`- ${a.id ?? a.ask_id} from ${nameOf(members, a.from_id)}: ${a.question}`);
+  }
+  const waiting = state.huddles_for_me || [];
+  const talking = (state.huddles || []).filter((x) => x.status === 'open' && !waiting.some((w) => w.id === x.id));
+  if (waiting.length) {
+    lines.push('');
+    lines.push('Huddles waiting for your take (huddle action=get, then add ideas, comments or reactions):');
+    for (const x of waiting) lines.push(`- ${huddleLine(x, members)}`);
+  }
+  if (talking.length) lines.push(`Open huddles: ${talking.map((x) => huddleLine(x, members)).join('; ')}`);
+  return lines.join('\n');
+}
+
+export function huddleLine(x, members) {
+  return `${x.id} ${x.kind}: ${x.topic} (started by ${nameOf(members, x.started_by)})`;
+}
+
+// What each kind of huddle asks of the agents in it.
+export const HUDDLE_ASK = {
+  brainstorm: 'An open question. Add your ideas (one per post), and back or push back on teammates’ ideas with a reason.',
+  design: 'A proposed approach (idea #1). Back it, push back with concrete concerns, or add an alternative as a new idea.',
+  review: 'Review the work named in the context. Post findings as comments and suggested changes as ideas.',
+  standup: 'Post one update: what you finished, what is next, and what is blocking you.',
+};
+
+// The discussion part of a huddle stays well under an MCP tool's output budget: the newest posts
+// that fit, each clipped.
+const DISCUSSION_BUDGET = 20_000;
+const POST_CHARS = 1500;
+
+function postLines(p, membersById) {
+  const by = nameOf(membersById, p.member_id);
+  if (p.kind !== 'idea') return [`- #${p.seq} ${by}${p.on ? ` on idea #${p.on}` : ''}: ${clip(p.text, POST_CHARS)}`];
+  const votes = p.votes || [];
+  const up = votes.filter((v) => v.value > 0).length;
+  return [
+    `- idea #${p.seq} by ${by} (+${up}/-${votes.length - up}): ${clip(p.text, POST_CHARS)}`,
+    ...votes.map((v) => `    ${nameOf(membersById, v.member_id)} ${v.value > 0 ? 'backs it' : 'pushes back'}${v.note ? `: ${clip(v.note, 300)}` : ''}`),
+  ];
+}
+
+// A whole huddle as text: the ask, the ideas with their backing, the discussion, the decision.
+export function huddleText(x, membersById = {}) {
+  const people = (x.people || []).length ? x.people.map((id) => nameOf(membersById, id)).join(', ') : 'the whole team';
+  const lines = [`${x.id} · ${x.kind} · ${x.status}: ${x.topic}`];
+  lines.push(`Started by ${nameOf(membersById, x.started_by)} ${ago(x.created_at)}, with ${people}.`);
+  if (x.context) lines.push('', 'Context:', x.context);
+  if (x.status === 'open') {
+    lines.push('', HUDDLE_ASK[x.kind] || '');
+    const waiting = x.waiting_on || [];
+    lines.push(waiting.length ? `Still waiting on: ${waiting.map((id) => nameOf(membersById, id)).join(', ')}` : 'Everyone expected has weighed in.');
+  }
+  const posts = x.posts || [];
+  if (posts.length) {
+    const blocks = [];
+    let used = 0;
+    for (let i = posts.length - 1; i >= 0; i--) {
+      const block = postLines(posts[i], membersById).join('\n');
+      if (used + block.length > DISCUSSION_BUDGET && blocks.length) break;
+      blocks.unshift(block);
+      used += block.length + 1;
+    }
+    lines.push('', 'Discussion:');
+    if (blocks.length < posts.length) lines.push(`(${posts.length - blocks.length} earlier posts not shown; the dashboard has the whole discussion)`);
+    lines.push(...blocks);
+  } else if (Array.isArray(x.ideas) && x.ideas.length) {
+    lines.push('', 'Ideas:');
+    for (const i of x.ideas) lines.push(`- #${i.seq} by ${nameOf(membersById, i.member_id)} (+${i.up}/-${i.down}): ${i.text}`);
+  } else {
+    lines.push('', 'Nothing posted yet.');
+  }
+  if (x.status === 'closed') {
+    lines.push('', `Closed by ${nameOf(membersById, x.closed_by)}${x.closed_at ? ` ${ago(x.closed_at)}` : ''}.`);
+    if (x.decision) lines.push(`Decision: ${x.decision}`);
+    if (x.why) lines.push(`Why: ${x.why}`);
   }
   return lines.join('\n');
 }

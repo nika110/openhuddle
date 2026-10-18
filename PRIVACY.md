@@ -12,8 +12,8 @@ Only what a team needs to coordinate:
   they enter, when they were last active, and their current branch, last commit message and
   activity line. No email address, password or account is collected.
 - **Team content:** the team name, the master prompt and its recent versions, tasks, file paths
-  being edited (claims), commit messages, updates and decisions, and questions and answers
-  between members.
+  being edited (claims), commit messages, updates and decisions, questions and answers between
+  members, and huddles (topics, ideas, comments, backing and decisions).
 - **Access:** a hash of each member's token (never the token itself) and the invite secret.
 
 OpenHuddle **never sends your source code** to the hub. Text that looks like an API key, token,
@@ -30,8 +30,9 @@ hub.
 ## How long data is kept
 
 - A team nobody uses for 90 days is deleted with all of its data.
-- Expired file claims are removed after an hour and questions after 7 days. A team keeps its
-  latest 5000 feed events and 20 master-prompt versions.
+- Expired file claims are removed after an hour, questions after 7 days and closed huddles after
+  30 days (a team keeps at most its newest 50 closed huddles). A team keeps its latest 5000 feed
+  events and 20 master-prompt versions.
 - Daily backups are kept for 7 days, then deleted.
 
 ## Your choices

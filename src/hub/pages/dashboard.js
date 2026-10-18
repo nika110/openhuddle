@@ -11,6 +11,9 @@ let lockedOut = false;
 const feedEvents = new Map();
 const editing = new Map();
 const FEED_MAX = 150;
+const openTalks = new Set();
+const talkDetails = new Map();
+const drafts = new Map();
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -190,6 +193,7 @@ function renderAll() {
   renderMembers();
   renderRules();
   renderBoard();
+  renderHuddles();
   renderPrompt();
   renderFeed();
 }
@@ -205,12 +209,22 @@ function renderHeader() {
 
 function renderAsks() {
   const asks = state.asks_for_me || [];
+  const talks = state.huddles_for_me || [];
   const box = clear($('#asks'));
-  box.hidden = asks.length === 0;
-  if (!asks.length) return;
+  const n = asks.length + talks.length;
+  box.hidden = n === 0;
+  if (!n) return;
+  const title = !talks.length
+    ? asks.length === 1 ? 'A question is waiting for your agent' : `${asks.length} questions are waiting for your agent`
+    : !asks.length
+      ? talks.length === 1 ? 'A huddle is waiting for your take' : `${talks.length} huddles are waiting for your take`
+      : `${n} things are waiting for your agent`;
   box.append(
-    h('p', { class: 'asks-title', text: asks.length === 1 ? 'A question is waiting for your agent' : `${asks.length} questions are waiting for your agent` }),
-    h('ul', {}, asks.slice(0, 4).map((a) => h('li', {}, who(a.from_id), ' asked ', quoted(a.question), h('span', { class: 'time', text: ` ${ago(a.created_at)}` })))),
+    h('p', { class: 'asks-title', text: title }),
+    h('ul', {},
+      asks.slice(0, 4).map((a) => h('li', {}, who(a.from_id), ' asked ', quoted(a.question), h('span', { class: 'time', text: ` ${ago(a.created_at)}` }))),
+      talks.slice(0, 4).map((x) => h('li', {}, who(x.started_by), ` started a ${KIND_TEXT[x.kind]?.toLowerCase() || 'huddle'} `, code(x.id), ': ', quoted(x.topic))),
+    ),
     h('p', { class: 'hint', text: 'Your agent sees these on its next step and answers them.' }),
   );
 }
@@ -374,6 +388,155 @@ function card(t) {
   );
 }
 
+// ---------- huddles ----------
+
+const KIND_TEXT = { brainstorm: 'Brainstorm', design: 'Design', review: 'Review', standup: 'Standup' };
+
+function people(ids) {
+  return ids.map((id, i) => [i ? ', ' : '', who(id)]);
+}
+
+function renderHuddles() {
+  // Leave the panel alone while someone types into it; the draft survives the next render anyway.
+  const typing = document.activeElement;
+  if (typing && typing.tagName === 'INPUT' && $('#huddles').contains(typing)) return;
+  const list = state.huddles || [];
+  const open = list.filter((x) => x.status === 'open').length;
+  $('#huddles-count').textContent = open ? `${open} open` : '';
+  const box = clear($('#huddles'));
+  if (!list.length) {
+    box.append(
+      h('div', { class: 'empty' },
+        h('p', { class: 'empty-title', text: 'No huddles yet' }),
+        h('p', {}, 'When something needs more than one opinion, tell your agent ', quoted('start a brainstorm with the team about how we store sessions'), '. Everyone’s agents weigh in here, and so can you.'),
+      ),
+    );
+    return;
+  }
+  for (const x of list) box.append(huddleCard(x));
+}
+
+function huddleCard(x) {
+  const meId = state.me?.id;
+  const isOpen = x.status === 'open';
+  const standup = x.kind === 'standup';
+  let status = null;
+  if (isOpen) {
+    status = x.waiting_on?.length
+      ? h('p', { class: 'huddle-wait' }, 'Waiting on ', people(x.waiting_on))
+      : h('p', { class: 'huddle-wait is-done', text: 'Everyone has weighed in. Whoever started it closes it with the decision.' });
+  }
+  const ideas = (x.ideas || []).length
+    ? h('ol', { class: 'ideas' }, x.ideas.map((i) => ideaRow(x, i, meId)))
+    : isOpen && !standup ? h('p', { class: 'hint', text: 'No ideas yet.' }) : null;
+  const decision = !isOpen
+    ? h('div', { class: 'decision' },
+      x.decision ? h('p', {}, h('b', { text: 'Decision: ' }), x.decision) : null,
+      x.why ? h('p', { class: 'hint', text: `Why: ${x.why}` }) : null,
+      h('p', { class: 'hint' }, 'Closed by ', who(x.closed_by), ` ${ago(x.closed_at)}`),
+    )
+    : null;
+  let add = null;
+  if (isOpen) {
+    const input = h('input', {
+      class: 'vote-comment',
+      type: 'text',
+      placeholder: standup ? 'Your update: done, next, blockers' : 'Add an idea',
+      'aria-label': `Add to ${x.id}`,
+      maxlength: '2000',
+    });
+    input.value = drafts.get(x.id) || '';
+    input.addEventListener('input', () => drafts.set(x.id, input.value));
+    const send = () => {
+      const text = input.value.trim();
+      if (!text) return;
+      input.blur();
+      act(async () => {
+        await api('/api/huddle/post', { id: x.id, kind: standup ? 'comment' : 'idea', text });
+        drafts.delete(x.id);
+        if (openTalks.has(x.id)) await loadTalk(x.id);
+      }, 'Posted');
+    };
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') send();
+    });
+    add = h('div', { class: 'bar-actions' }, input, h('button', { class: 'btn small', type: 'button', text: standup ? 'Post update' : 'Add idea', onclick: send }));
+  }
+  const shown = openTalks.has(x.id);
+  const more = x.post_count
+    ? h('button', { class: 'btn ghost small', type: 'button', text: shown ? 'Hide discussion' : `Show discussion (${x.post_count})`, onclick: () => toggleTalk(x.id) })
+    : null;
+  return h('article', { class: `huddle ${colorOf(x.started_by)}${isOpen ? '' : ' is-closed'}` },
+    h('div', { class: 'card-top' },
+      h('span', { class: 'huddle-tags' }, h('span', { class: 'key', text: x.id }), h('span', { class: `pill kind kind-${x.kind}`, text: KIND_TEXT[x.kind] || x.kind })),
+      isOpen ? null : h('span', { class: 'pill quiet', text: 'closed' }),
+    ),
+    h('p', { class: 'huddle-topic', text: x.topic }),
+    h('p', { class: 'huddle-meta' }, 'Started by ', who(x.started_by), ` ${ago(x.created_at)}, with `, x.people?.length ? people(x.people) : 'the whole team'),
+    x.context ? h('p', { class: 'huddle-context', text: shorten(x.context, 320) }) : null,
+    status,
+    ideas,
+    decision,
+    add,
+    more,
+    shown ? discussion(x.id) : null,
+  );
+}
+
+function ideaRow(x, i, meId) {
+  const vote = (dir, label, okText) =>
+    h('button', { class: 'btn ghost small', type: 'button', text: label, onclick: () => act(() => api('/api/huddle/vote', { id: x.id, idea: i.seq, vote: dir }), okText) });
+  const buttons = x.status === 'open' && i.member_id !== meId ? [vote('up', 'Back it', 'Backed'), vote('down', 'Push back', 'Pushed back')] : [];
+  return h('li', { class: 'idea' },
+    h('div', { class: 'idea-top' },
+      h('span', { class: 'key', text: `#${i.seq}` }),
+      who(i.member_id),
+      h('span', { class: 'score', title: `${i.up} backing, ${i.down} pushing back` }, h('span', { class: 'up', text: `+${i.up}` }), ' ', h('span', { class: 'down', text: `−${i.down}` })),
+    ),
+    h('p', { class: 'idea-text', text: i.text }),
+    buttons.length ? h('div', { class: 'card-actions' }, buttons) : null,
+  );
+}
+
+function toggleTalk(id) {
+  if (openTalks.has(id)) {
+    openTalks.delete(id);
+  } else {
+    openTalks.add(id);
+    loadTalk(id);
+  }
+  renderHuddles();
+}
+
+async function loadTalk(id) {
+  try {
+    talkDetails.set(id, await api(`/api/huddle?id=${encodeURIComponent(id)}`));
+  } catch (err) {
+    openTalks.delete(id);
+    if (!lockedOut) toast(err.message, true);
+  }
+  if (state) renderHuddles();
+}
+
+function discussion(id) {
+  const d = talkDetails.get(id);
+  if (!d) return h('p', { class: 'hint', text: 'Loading the discussion…' });
+  return h('ol', { class: 'talk' }, d.posts.map((p) =>
+    h('li', { class: `talk-item is-${p.kind}` },
+      h('div', { class: 'idea-top' },
+        h('span', { class: 'key', text: `#${p.seq}` }),
+        who(p.member_id),
+        p.kind === 'idea' ? h('span', { class: 'pill quiet', text: 'idea' }) : p.on ? h('span', { class: 'hint', text: `on idea #${p.on}` }) : null,
+        h('span', { class: 'hint', text: ago(p.created_at) }),
+      ),
+      h('p', { class: 'idea-text', text: p.text }),
+      (p.votes || []).filter((v) => v.note).map((v) =>
+        h('p', { class: `talk-vote ${v.value > 0 ? 'yes' : 'no'}` }, who(v.member_id), v.value > 0 ? ' backs it: ' : ' pushes back: ', v.note),
+      ),
+    ),
+  ));
+}
+
 const PROMPT_BADGE = {
   draft: (p) => `Draft, v${p.version}`,
   voting: (p) => `Voting on v${p.version}`,
@@ -514,6 +677,12 @@ function describe(ev) {
     case 'settings_changed': return [who(actor), ' changed the house rules', d.changes ? `: ${Object.keys(d.changes).join(', ').replace(/_/g, ' ')}` : ''];
     case 'lead_changed': return [who(d.lead_id), ' is now the lead'];
     case 'member_removed': return [h('b', { text: d.name || 'Someone' }), ' was removed from the team'];
+    case 'huddle_started': return [who(actor), ` started a ${KIND_TEXT[d.kind]?.toLowerCase() || ''} huddle `, code(d.huddle_id || '?'), ': ', quoted(d.topic || '')];
+    case 'huddle_post':
+      if (d.post_kind === 'idea') return [who(actor), ' added an idea to ', code(d.huddle_id || '?'), ': ', quoted(d.text || '')];
+      return [who(actor), ' in ', code(d.huddle_id || '?'), d.on ? ` on idea #${d.on}` : '', ': ', quoted(d.text || '')];
+    case 'huddle_vote': return [who(actor), d.value > 0 ? ' backed' : ' pushed back on', ` idea #${d.seq} in `, code(d.huddle_id || '?'), d.note ? [': ', quoted(d.note)] : ''];
+    case 'huddle_closed': return [who(actor), ' closed ', code(d.huddle_id || '?'), d.decision ? [', decided: ', quoted(d.decision)] : ''];
     default: return [who(actor), ` ${String(ev.kind || 'did something').replace(/_/g, ' ')}`];
   }
 }
@@ -678,6 +847,7 @@ async function refresh() {
   const next = await api('/api/state');
   state = next;
   renderAll();
+  for (const id of openTalks) loadTalk(id);
 }
 
 let inviteWired = false;

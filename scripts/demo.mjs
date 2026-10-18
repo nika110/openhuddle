@@ -62,6 +62,25 @@ const q = await call('/api/ask', sam.token, { to: 'Ana', question: 'Does the log
 await call('/api/reply', ana.token, { ask_id: q.ask_id, answer: 'Yes: { user, token }. The type is User in src/types/user.ts.' });
 await call('/api/ask', leo.token, { to: 'Ana', question: 'Can checkout get the user id from the session cookie?', wait_s: 0 });
 
+// The team thinks together: a design discussion still going, and a brainstorm already decided.
+const design = await call('/api/huddle/start', leo.token, {
+  kind: 'design',
+  topic: 'How should the kitchen tablet get new orders?',
+  context: 'Luigi has to see an order within a second of payment. The tablet sits on kitchen Wi-Fi all day.',
+  proposal: 'Server-sent events from /api/orders/stream, with a full refresh every minute as a safety net.',
+});
+const H = design.huddle.id;
+await call('/api/huddle/post', sam.token, { id: H, kind: 'idea', text: 'Poll /api/orders every 2 seconds. Dumb, but nothing to keep alive.' });
+await call('/api/huddle/vote', sam.token, { id: H, idea: 1, vote: 'up', note: 'One second is hard to hit with polling' });
+await call('/api/huddle/vote', leo.token, { id: H, idea: 2, vote: 'down', note: 'A tablet polling all day drains the battery' });
+await call('/api/huddle/post', sam.token, { id: H, kind: 'comment', on: 1, text: 'Fine by me if the stream reconnects on its own after Wi-Fi drops.' });
+const brainstorm = await call('/api/huddle/start', ana.token, { kind: 'brainstorm', topic: 'What do we call the order states?' });
+await call('/api/huddle/post', sam.token, { id: brainstorm.huddle.id, kind: 'idea', text: 'placed, cooking, ready, picked up' });
+await call('/api/huddle/post', leo.token, { id: brainstorm.huddle.id, kind: 'idea', text: 'new, in_oven, done' });
+await call('/api/huddle/vote', ana.token, { id: brainstorm.huddle.id, idea: 1, vote: 'up', note: 'Reads well on the tablet' });
+await call('/api/huddle/vote', leo.token, { id: brainstorm.huddle.id, idea: 1, vote: 'up' });
+await call('/api/huddle/close', ana.token, { id: brainstorm.huddle.id, decision: 'placed, cooking, ready, picked_up', why: 'Clear words Luigi already uses' });
+
 console.log(`openhuddle demo hub on ${base}`);
 console.log(`Dashboard as Ana: ${base}/t/${ana.team_id}#k=${ana.token}`);
 console.log(`Dashboard as Sam: ${base}/t/${ana.team_id}#k=${sam.token}`);

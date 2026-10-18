@@ -56,6 +56,38 @@ test('http: missing token 401 json', async () => {
   assert.equal(json.code, 'missing_token');
 });
 
+test('http: huddle routes need a token, an id and the right team', async (t) => {
+  // Its own hub, so the teams made here don't use up the shared hub's create budget.
+  const own = await startHub({ port: 0, host: '127.0.0.1', log: () => {} });
+  const shared = hubUrl;
+  hubUrl = own.url;
+  t.after(async () => {
+    hubUrl = shared;
+    await own.close();
+  });
+  const one = await crew();
+  const two = await crew();
+  assert.equal((await call('GET', '/api/huddle?id=H1')).status, 401);
+  assert.equal((await call('POST', '/api/huddle/start', { body: { topic: 'x' } })).status, 401);
+  const started = await call('POST', '/api/huddle/start', { token: one.a.token, body: { kind: 'brainstorm', topic: 'Pick a DB' } });
+  assert.equal(started.status, 200);
+  const id = started.json.huddle.id;
+  const missing = await call('GET', '/api/huddle', { token: one.a.token });
+  assert.equal(missing.status, 400);
+  assert.equal(missing.json.code, 'missing_huddle');
+  assert.equal((await call('GET', `/api/huddle?id=${id}`, { token: one.b.token })).status, 200);
+  // another team's member sees nothing and changes nothing
+  assert.equal((await call('GET', `/api/huddle?id=${id}`, { token: two.a.token })).status, 404);
+  assert.equal((await call('POST', '/api/huddle/post', { token: two.a.token, body: { id, text: 'hi' } })).status, 404);
+  assert.equal((await call('POST', '/api/huddle/close', { token: two.a.token, body: { id, decision: 'x' } })).status, 404);
+  const posted = await call('POST', '/api/huddle/post', { token: one.b.token, body: { id, kind: 'idea', text: 'Postgres' } });
+  assert.equal(posted.json.seq, 1);
+  const voted = await call('POST', '/api/huddle/vote', { token: one.a.token, body: { id, idea: 1, vote: 'up' } });
+  assert.equal(voted.status, 200);
+  const closed = await call('POST', '/api/huddle/close', { token: one.a.token, body: { id, decision: 'Postgres' } });
+  assert.equal(closed.json.huddle.status, 'closed');
+});
+
 test('http: bad json 400', async () => {
   const { a } = await crew();
   const { status, json } = await call('POST', '/api/post', { token: a.token, raw: '{nope' });

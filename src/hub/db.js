@@ -92,9 +92,59 @@ CREATE TABLE IF NOT EXISTS asks (
 );
 `;
 
+// 0.4.0: huddles, where the team brainstorms, discusses designs, reviews and does standups.
+// A function, because SQLite has no ADD COLUMN IF NOT EXISTS and a re-run must stay harmless.
+function huddles(db) {
+  const cols = db.prepare('PRAGMA table_info(teams)').all().map((c) => c.name);
+  if (!cols.includes('next_huddle')) db.exec('ALTER TABLE teams ADD COLUMN next_huddle INTEGER NOT NULL DEFAULT 1');
+  db.exec(HUDDLE_TABLES);
+}
+
+const HUDDLE_TABLES = `
+CREATE TABLE IF NOT EXISTS huddles (
+  team_id TEXT NOT NULL,
+  id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  topic TEXT NOT NULL,
+  context TEXT,
+  started_by TEXT NOT NULL,
+  people TEXT NOT NULL DEFAULT '[]',
+  status TEXT NOT NULL,
+  decision TEXT,
+  why TEXT,
+  closed_by TEXT,
+  next_post INTEGER NOT NULL DEFAULT 1,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  closed_at INTEGER,
+  PRIMARY KEY (team_id, id)
+);
+CREATE TABLE IF NOT EXISTS huddle_posts (
+  team_id TEXT NOT NULL,
+  huddle_id TEXT NOT NULL,
+  seq INTEGER NOT NULL,
+  member_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  text TEXT NOT NULL,
+  on_seq INTEGER,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (team_id, huddle_id, seq)
+);
+CREATE TABLE IF NOT EXISTS huddle_votes (
+  team_id TEXT NOT NULL,
+  huddle_id TEXT NOT NULL,
+  seq INTEGER NOT NULL,
+  member_id TEXT NOT NULL,
+  value INTEGER NOT NULL,
+  note TEXT,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (team_id, huddle_id, seq, member_id)
+);
+`;
+
 // Schema changes are appended here, never edited: entry N upgrades a database from N-1 to N.
 // Version 1 is the 0.1.0 schema; databases from 0.1.0 carry no stamp (0) and upgrade in place.
-const MIGRATIONS = [null, SCHEMA];
+const MIGRATIONS = [null, SCHEMA, huddles];
 export const SCHEMA_VERSION = MIGRATIONS.length - 1;
 
 export function openDb(path = ':memory:') {
@@ -111,7 +161,9 @@ export function openDb(path = ':memory:') {
   for (let v = current + 1; v <= SCHEMA_VERSION; v++) {
     db.exec('BEGIN');
     try {
-      db.exec(MIGRATIONS[v]);
+      const step = MIGRATIONS[v];
+      if (typeof step === 'function') step(db);
+      else db.exec(step);
       db.exec(`PRAGMA user_version = ${v}`);
       db.exec('COMMIT');
     } catch (err) {

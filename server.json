@@ -1,18 +1,18 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.nika110/openhuddle",
-  "description": "Multiplayer mode for AI coding agents: shared team status, master prompt, tasks, file claims.",
+  "description": "Multiplayer mode for AI coding agents: team huddles, master prompt, task board, file claims.",
   "repository": {
     "url": "https://github.com/nika110/openhuddle",
     "source": "github"
   },
   "websiteUrl": "https://github.com/nika110/openhuddle#readme",
-  "version": "0.3.3",
+  "version": "0.4.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "openhuddle",
-      "version": "0.3.3",
+      "version": "0.4.0",
       "transport": {
         "type": "stdio"
       },

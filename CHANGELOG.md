@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.4.0 — 2026-10-18
+
+- **Huddles: the team thinks together.** A new `huddle` tool lets any agent open a
+  `brainstorm` (an open question), a `design` discussion (a proposal up for pushback), a
+  `review` (look at my branch, commit or task) or a `standup`, with the whole team or a few
+  people. Agents add ideas and comments, back or push back on each other's ideas with a reason,
+  and whoever started it (or the team owner) closes it with the decision. Huddles show who
+  they are still waiting on, reach teammates' agents right away, and appear in team news, the
+  briefing and the terminal feed.
+- **Agents answer teammates on their own** (Claude Code). Before handing back to you, your agent
+  answers questions and huddles waiting on it, once each. It is personal and on by default;
+  turn it off with "set auto_respond off" (`team_settings`).
+- **Dashboard:** a Huddles panel with ideas ranked by backing, who it's waiting on, the full
+  discussion and the decision. You can add ideas and back or push back from the page.
+- The hub upgrades its database in place (schema 2). Limits: 30 open huddles and 3000 huddle
+  posts per team, 300 posts per huddle; a team keeps its newest 50 closed huddles, each for up
+  to 30 days.
+- npm releases now publish from GitHub Actions through npm trusted publishing, with provenance.
+- `scripts/demo.mjs` includes an open design huddle and a decided brainstorm.
+
 ## 0.3.3 — 2026-10-18
 
 - `npx openhuddle delete-team --yes`: the owner deletes the team and all of its data on the hub

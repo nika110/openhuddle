@@ -4,7 +4,7 @@
 import { Api } from './api.js';
 import { findProject, loadState, saveState } from './config.js';
 import { gitInfo, lastCommit } from './git.js';
-import { frame, briefing, newsBlock, byId, clip, clock, safeName, safeTaskKey } from './format.js';
+import { frame, briefing, newsBlock, huddleLine, byId, clip, clock, safeName, safeTaskKey } from './format.js';
 import { latestNews } from './news.js';
 import { isAbsolute, join } from 'node:path';
 import { toRepoPath } from '../shared/paths.js';
@@ -81,12 +81,52 @@ function editTargets(input, root) {
 
 function questionsBlock(state) {
   const asks = state.asks_for_me || [];
-  if (!asks.length) return '';
+  const huddles = state.huddles_for_me || [];
   const members = byId(state.members);
-  return [
-    'Questions waiting for your answer (use team_reply):',
-    ...asks.map((a) => `- ${a.id ?? a.ask_id} from ${clip(members[a.from_id]?.name ?? 'a teammate')}: ${a.question}`),
-  ].join('\n');
+  const parts = [];
+  if (asks.length) {
+    parts.push(
+      [
+        'Questions waiting for your answer (use team_reply):',
+        ...asks.map((a) => `- ${a.id ?? a.ask_id} from ${clip(members[a.from_id]?.name ?? 'a teammate')}: ${a.question}`),
+      ].join('\n'),
+    );
+  }
+  if (huddles.length) {
+    parts.push(
+      [
+        'Huddles waiting for your take (huddle action=get, then add ideas, comments or reactions):',
+        ...huddles.map((x) => `- ${huddleLine(x, members)}`),
+      ].join('\n'),
+    );
+  }
+  return parts.join('\n\n');
+}
+
+const WAITING_ID = /^[QH][0-9]{1,6}$/;
+
+// When the agent is about to hand back to its user, teammates who are waiting on it get an
+// answer first: one nudge per question or huddle, never while already continuing from a nudge.
+// The reason reaches the agent outside a <team-data> frame, so it carries only ids and names
+// reduced to inert characters.
+function waitingNudge(state, st) {
+  const members = byId(state.members);
+  const items = [
+    ...(state.asks_for_me || []).map((a) => ({ id: String(a.id ?? a.ask_id ?? ''), from: a.from_id, what: 'question' })),
+    ...(state.huddles_for_me || []).map((x) => ({ id: String(x.id ?? ''), from: x.started_by, what: 'huddle' })),
+  ].filter((x) => WAITING_ID.test(x.id));
+  const nudged = new Set(Array.isArray(st.nudged) ? st.nudged : []);
+  const fresh = items.filter((x) => !nudged.has(x.id)).slice(0, 5);
+  if (!fresh.length) return null;
+  const list = fresh.map((x) => `${x.what} ${x.id} from ${safeName(members[x.from]?.name)}`).join(', ');
+  return {
+    ids: fresh.map((x) => x.id),
+    reason:
+      `openhuddle: before you finish, your teammates are waiting on you: ${list}. ` +
+      'Read them (team_sync, or huddle action=get for huddles), answer questions with team_reply and add your honest take to huddles. ' +
+      'If something needs your user to decide, say so in the team instead of guessing. ' +
+      'Then end with your answer to your user as before, plus one short line on what you told the team.',
+  };
 }
 
 async function inner(name, input, ctx, ms, run = { timedOut: false }) {
@@ -195,8 +235,24 @@ async function inner(name, input, ctx, ms, run = { timedOut: false }) {
     }
 
     case 'stop': {
-      await api.post('/api/heartbeat', { status: gitInfo(root) });
-      return '';
+      const st = loadState(dir);
+      const respond = !input.stop_hook_active && st.auto_respond !== false && !st.unreadable;
+      const [, state] = await Promise.all([api.post('/api/heartbeat', { status: gitInfo(root) }), respond ? api.get('/api/state') : null]);
+      if (!state) return '';
+      const nudge = waitingNudge(state, st);
+      if (!nudge) return '';
+      st.nudged = [...(Array.isArray(st.nudged) ? st.nudged : []), ...nudge.ids];
+      if (st.fresh) {
+        // No cursor yet: start the news from now, as the prompt hook would, not from the team's
+        // first event.
+        st.cursor = Math.max(st.cursor, state.last_event_id ?? 0);
+        st.urgent_cursor = Math.max(st.urgent_cursor, st.cursor);
+        st.shown = [];
+      }
+      cacheSettings(st, state);
+      save(st);
+      if (run.timedOut) return '';
+      return JSON.stringify({ decision: 'block', reason: nudge.reason });
     }
 
     case 'git-commit': {

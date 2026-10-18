@@ -259,6 +259,7 @@ export async function startHub({
           }),
         );
       }
+      if (path === '/api/huddle') return sendJson(res, 200, hub.huddle(member, { id: url.searchParams.get('id') }));
       if (path === '/api/stream') {
         const since = Number(req.headers['last-event-id'] || url.searchParams.get('since') || 0) || 0;
         return stream(req, res, member, since);
@@ -284,6 +285,14 @@ export async function startHub({
       }
       case '/api/reply':
         return sendJson(res, 200, hub.reply(member, body));
+      case '/api/huddle/start':
+        return sendJson(res, 200, hub.huddleStart(member, body));
+      case '/api/huddle/post':
+        return sendJson(res, 200, hub.huddlePost(member, body));
+      case '/api/huddle/vote':
+        return sendJson(res, 200, hub.huddleVote(member, body));
+      case '/api/huddle/close':
+        return sendJson(res, 200, hub.huddleClose(member, body));
       case '/api/prompt/edit':
         return sendJson(res, 200, hub.promptEdit(member, body));
       case '/api/prompt/submit':

@@ -32,6 +32,10 @@ export const PROMPT_SECTIONS = [
 
 export const TASK_STATUSES = ['proposed', 'open', 'assigned', 'in_progress', 'done'];
 
+// How a team thinks together. Every kind works the same way (ideas, comments, backing, a
+// decision); the kind tells the agents what is being asked of them.
+export const HUDDLE_KINDS = ['brainstorm', 'design', 'review', 'standup'];
+
 // Kinds that reach a member's agent right away (after an edit), not just on the next prompt.
 export const URGENT_KINDS = [
   'ask',
@@ -42,6 +46,9 @@ export const URGENT_KINDS = [
   'prompt_submitted',
   'prompt_locked',
   'member_removed',
+  'huddle_started',
+  'huddle_post',
+  'huddle_closed',
 ];
 
 export const LIMITS = Object.freeze({
@@ -58,6 +65,11 @@ export const LIMITS = Object.freeze({
   streams_total: 5000,
   stream_buffer: 1_000_000,
   events_per_team: 5000,
+  huddles_open: 30,
+  huddles_closed_kept: 50,
+  huddle_posts: 300,
+  huddle_posts_per_team: 3000,
+  huddle_text: 4000,
 });
 
 export const ONLINE_MS = 150_000;

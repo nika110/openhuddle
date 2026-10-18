@@ -42,10 +42,10 @@ test('mcp: initialize echoes supported version', async () => {
   assert.deepEqual(byId(res, 3).result, {});
 });
 
-test('mcp: tools/list has 9 tools', async () => {
+test('mcp: tools/list has 10 tools', async () => {
   const [res] = await rpc(null, [{ jsonrpc: '2.0', id: 1, method: 'tools/list' }]);
   const names = res.result.tools.map((t) => t.name).sort();
-  assert.deepEqual(names, ['claim', 'master_prompt', 'plan', 'task', 'team_ask', 'team_post', 'team_reply', 'team_settings', 'team_sync']);
+  assert.deepEqual(names, ['claim', 'huddle', 'master_prompt', 'plan', 'task', 'team_ask', 'team_post', 'team_reply', 'team_settings', 'team_sync']);
   for (const t of res.result.tools) {
     assert.equal(t.inputSchema.type, 'object');
     assert.ok(t.description.length > 40, t.name);
@@ -199,4 +199,52 @@ test('mcp: finds a team created after the server started', async () => {
   } finally {
     cleanup(repo);
   }
+});
+
+test('mcp: huddle start, idea, react, get, close round trip', async () => {
+  const started = await rpc(A, [
+    call(1, 'huddle', { action: 'start', kind: 'design', topic: 'Cart storage', proposal: 'Keep the cart in localStorage', context: 'No accounts yet' }),
+  ]);
+  const startText = started[0].result.content[0].text;
+  assert.equal(started[0].result.isError, false, startText);
+  assert.ok(startText.startsWith('<team-data'));
+  const id = /Started (H\d+)/.exec(startText)[1];
+  assert.match(startText, /Still waiting on: bob/);
+
+  const talk = await rpc(B, [
+    call(2, 'huddle', { action: 'idea', id, text: 'Server-side cart keyed by device id' }),
+    call(3, 'huddle', { action: 'react', id, idea: 1, vote: 'down', note: 'breaks across devices' }),
+    call(4, 'huddle', { action: 'comment', id, idea: 1, text: 'Fine for the MVP though' }),
+    call(5, 'huddle', { action: 'list' }),
+  ]);
+  assert.equal(byId(talk, 2).result.content[0].text, `Added idea #2 to ${id}.`);
+  assert.equal(byId(talk, 3).result.content[0].text, `You pushed back on idea #1 in ${id}.`);
+  assert.equal(byId(talk, 4).result.isError, false);
+  assert.match(byId(talk, 5).result.content[0].text, new RegExp(`${id} design: Cart storage`));
+
+  const read = await rpc(A, [call(6, 'huddle', { action: 'get', id: id.toLowerCase() })]);
+  const text = read[0].result.content[0].text;
+  assert.match(text, /idea #1 by alice \(\+0\/-1\): Keep the cart in localStorage/);
+  assert.match(text, /bob pushes back: breaks across devices/);
+  assert.match(text, /Everyone expected has weighed in/);
+
+  const bad = await rpc(B, [call(7, 'huddle', { action: 'close', id, decision: 'mine' })]);
+  assert.equal(bad[0].result.isError, true, 'only the starter or the owner closes it');
+  const closed = await rpc(A, [call(8, 'huddle', { action: 'close', id, decision: 'localStorage for the MVP', why: 'no accounts yet' })]);
+  assert.match(closed[0].result.content[0].text, /Decision: localStorage for the MVP/);
+});
+
+test('mcp: auto_respond is a personal setting kept on this machine', async () => {
+  const off = await rpc(B, [call(1, 'team_settings', { action: 'set', auto_respond: false })]);
+  assert.equal(off[0].result.isError, false, off[0].result.content[0].text);
+  assert.match(off[0].result.content[0].text, /auto_respond: off/);
+  const { loadState } = await import('../src/client/config.js');
+  assert.equal(loadState(B.dir).auto_respond, false);
+  const on = await rpc(B, [call(2, 'team_settings', { action: 'set', auto_respond: true })]);
+  assert.match(on[0].result.content[0].text, /auto_respond: on/);
+  const word = await rpc(B, [call(3, 'team_settings', { action: 'set', auto_respond: 'off' })]);
+  assert.match(word[0].result.content[0].text, /auto_respond: off/, '"off" means off');
+  const junk = await rpc(B, [call(4, 'team_settings', { action: 'set', auto_respond: 'maybe' })]);
+  assert.equal(junk[0].result.isError, true);
+  await rpc(B, [call(5, 'team_settings', { action: 'set', auto_respond: 'on' })]);
 });

@@ -33,9 +33,14 @@ reaching another agent. These are the rules the code follows:
   never auto-approves anything.
 - **Your config is merged, not replaced.** OpenHuddle only adds its own entries to Claude
   Code, Codex, Cursor and git hook config, and `openhuddle leave` removes only those.
+- **Answering teammates is bounded.** In Claude Code, the Stop hook may ask your agent to answer
+  teammates' questions and huddles waiting on it before it hands back to you: at most once per
+  question or huddle, never while it is already continuing from such a request, and with only ids
+  and names reduced to plain characters, never teammates' text. Each person can switch it off for
+  their own agent (`auto_respond`).
 - **The Claude Code plugin is inert outside a team.** Its hooks and tools do nothing in a
-  project without `.openhuddle/config.json`. Its slash commands run `npx openhuddle` and treat
-  an invite link as data, never as instructions.
+  project without `.openhuddle/config.json`. Its slash commands run the plugin's own bundled CLI
+  (no download) and treat an invite link as data, never as instructions.
 - **No shell, no remote code.** OpenHuddle never runs commands it receives from the hub or from
   teammates. Browser links are built locally from validated parts and opened without a shell.
 - **The dashboard never renders teammate text as HTML** and is served with a strict
@@ -45,8 +50,9 @@ reaching another agent. These are the rules the code follows:
 - **Only the owner changes team-wide rules** (who assigns tasks, how the master prompt is
   approved, what happens when an agent tries to edit a claimed file), so one member cannot
   quietly turn off everyone's edit guards.
-- **The hub has hard limits** on request size, tasks, claims, live connections per member,
-  stored history and request rate, and its pattern matching cannot be made to backtrack.
+- **The hub has hard limits** on request size, tasks, claims, open huddles and posts per huddle,
+  live connections per member, stored history and request rate, and its pattern matching cannot
+  be made to backtrack.
 - **The invite link is the key.** Anyone with a valid invite link can join your team, see
   its activity and send messages to its agents. Links expire after 7 days. The owner can
   reset the link (`npx openhuddle invite --rotate`) and remove a member
@@ -55,7 +61,8 @@ reaching another agent. These are the rules the code follows:
 ## What the hub can see
 
 The hub stores team activity: member names, the master prompt, tasks, file paths being
-edited, commit messages, questions and answers. It never receives your code. If that is
+edited, commit messages, questions and answers, and huddle discussions. It never receives your
+code. If that is
 too much to share with a hosted hub, run your own with `npx openhuddle hub`.
 
 The free public hub (`https://92-5-77-35.sslip.io`) runs the released code from this repository

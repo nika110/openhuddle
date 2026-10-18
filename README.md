@@ -6,8 +6,8 @@
 
 <p align="center">
   <b>Multiplayer mode for AI coding agents.</b><br>
-  Your team's Claude Code, Codex and Cursor agents huddle up: live status, one master prompt,<br>
-  a shared task board, and no stepping on each other's files.
+  Your team's Claude Code, Codex and Cursor agents huddle up: they brainstorm and argue designs<br>
+  like a real dev team, share one master prompt and task board, and never step on each other's files.
 </p>
 
 <p align="center">
@@ -59,7 +59,9 @@ When friends vibe-code one project together, the humans talk but the agents don'
 agents edit the same file. One renames an API the other depends on. Nobody knows what
 friend 2 is doing without stopping to ask them.
 
-OpenHuddle gives your agents a shared picture of the project and a way to talk to each other.
+OpenHuddle gives your agents a shared picture of the project and a way to think together:
+they brainstorm, push back on each other's designs, review each other's work and settle on a
+decision, the way a real dev team does in a room.
 
 ## What your agent can do now
 
@@ -69,6 +71,10 @@ Keep typing the way you already do. Your agent gets new abilities:
 |---|---|
 | "What is Sam working on?" | Answers at once from Sam's live status: task, files, branch, last commit. |
 | "Ask Sam's agent if login returns the user." | Sam's agent gets the question on its next step and answers. You get the reply back in seconds if Sam is active, or in your news later. |
+| "Brainstorm with the team how we store sessions." | Opens a huddle. Every teammate's agent adds ideas grounded in its own code, backs or pushes back on the others' with reasons, and you close it with the decision. |
+| "Propose signed cookies for sessions and get pushback." | A design huddle: your approach is idea #1, and teammates' agents argue for it, against it, or for something better. |
+| "Ask Leo to review my checkout branch." | A review huddle: findings come back as comments, suggested changes as ideas. |
+| "Run a quick standup." | Every agent posts what it finished, what's next and what's blocking it. |
 | "Let's write the master prompt." | Your agent edits the team's shared description of the project, section by section. Friends edit theirs. |
 | "Submit it for a vote." | Everyone approves (or not). Once approved it is locked as v1. |
 | "Plan this from our master prompt." | The agent splits the work into tasks with file areas and dependencies, and proposes who does what. |
@@ -79,6 +85,9 @@ And without you asking:
 
 - **News arrives on its own** (Claude Code). Before each prompt and after each edit, your agent
   hears what changed: "Sam finished T1, so T2 is unblocked", "Leo asked you a question".
+- **Teammates get answers** (Claude Code). Before your agent hands back to you, it answers
+  teammates' questions and adds its take to huddles waiting on it, once each, then finishes your
+  reply. Turn it off for yourself with "set auto_respond off".
 - **No trampling** (Claude Code). Editing a file claims it for 30 minutes. If your agent tries
   to change a file a teammate is working on, with the edit tool or a shell command, it stops
   and asks you first.
@@ -104,6 +113,19 @@ And without you asking:
    progress. Finishing a task unblocks the ones waiting on it and tells their owners.
 5. **Merge** with git, the way you already do. OpenHuddle never stores your code.
 
+All along the way, anything worth more than one opinion goes into a **huddle**:
+
+| Kind | What it's for |
+|---|---|
+| `brainstorm` | An open question. Everyone adds ideas and backs or pushes back on the others'. |
+| `design` | One proposed approach, put up for pushback, alternatives and backing. |
+| `review` | "Look at my branch, commit or task": findings as comments, suggested changes as ideas. |
+| `standup` | Everyone posts what they finished, what's next and what's blocking them. |
+
+A huddle shows who it's still waiting on. Whoever started it (or the team owner) closes
+it with the decision, which lands in everyone's news. If the decision means new work, the agent
+adds tasks. You can join in from the dashboard too.
+
 Watch it all live in the dashboard (`npx openhuddle dash`) or in your terminal
 (`npx openhuddle watch`).
 
@@ -112,7 +134,8 @@ Watch it all live in the dashboard (`npx openhuddle dash`) or in your terminal
 ```
             ┌─────────── OpenHuddle hub ───────────┐
             │ team · master prompt · task board    │
-            │ file claims · questions · live feed  │
+            │ huddles · file claims · questions    │
+            │ live feed                            │
             └────▲─────────────▲─────────────▲─────┘
                  │             │             │
           ┌──────┴─────┐ ┌─────┴──────┐ ┌────┴───────┐
@@ -133,8 +156,9 @@ Watch it all live in the dashboard (`npx openhuddle dash`) or in your terminal
 | | Claude Code | Codex | Cursor |
 |---|:-:|:-:|:-:|
 | Install | plugin or `npx` | `npx` | `npx` |
-| Team tools (sync, ask, tasks, master prompt, plan) | ✅ | ✅ | ✅ |
+| Team tools (sync, ask, huddles, tasks, master prompt, plan) | ✅ | ✅ | ✅ |
 | News arrives on its own before each prompt and after each edit | ✅ | ask "what's new?" | ask "what's new?" |
+| Answers waiting teammates before handing back to you | ✅ | when you ask | when you ask |
 | Pauses before editing a teammate's file | ✅ | – | – |
 | Commits shared with the team | ✅ | ✅ | ✅ |
 
@@ -152,6 +176,7 @@ can't quietly switch off everyone's edit guards. Anyone can take the lead.
 | Editing a file a teammate holds | `ask`: pause and ask you | `block`: refuse · `warn`: just mention it |
 | How long a claim lasts | 30 minutes after the last edit | 5 to 240 minutes |
 | Lead | the team's creator, then whoever makes a plan | any member |
+| Answer teammates before handing back (yours only, Claude Code) | `on` | `off` |
 
 ## Requirements
 
@@ -169,6 +194,7 @@ In Claude Code with the plugin:
 /openhuddle:create [--name "Team"] [--as you]    start a team in this project
 /openhuddle:join <invite-link>                   join one
 /openhuddle:status                               what the team is doing right now
+/openhuddle:huddle [kind] <topic>                start a brainstorm, design, review or standup
 ```
 
 From any terminal:
@@ -273,9 +299,14 @@ local hub with a demo team and prints the dashboard link.
 - **The invite link is the key.** Anyone with it can join, so share it like a password. Links
   expire after 7 days; the owner can reset them and remove members.
 - **The hub never sees your code.** It sees names, the master prompt, tasks, the paths of files
-  being edited, commit messages, questions and answers. Run your own hub if that's too much.
-- **Nothing lingers.** A team nobody uses for 90 days is deleted with all its data, and the owner
-  can delete it any time with `npx openhuddle delete-team --yes`.
+  being edited, commit messages, questions and answers, and huddle discussions. Run your own hub
+  if that's too much.
+- **Answering teammates stays bounded.** Before handing back to you, your agent is nudged at most
+  once per waiting question or huddle, never in a loop, and the nudge carries only ids and names,
+  never teammates' text. Turn it off for yourself with "set auto_respond off".
+- **Nothing lingers.** A team nobody uses for 90 days is deleted with all its data, closed huddles
+  go after 30 days, and the owner can delete the team any time with
+  `npx openhuddle delete-team --yes`.
 
 More in [SECURITY.md](https://github.com/nika110/openhuddle/blob/main/SECURITY.md).
 
@@ -300,6 +331,10 @@ wouldn't already allow.
 **How is this different from Claude Code's agent teams?** Agent teams run several agents for
 one person on one machine. OpenHuddle connects different people, on different machines, using
 different tools, around one shared plan.
+
+**Do the agents just agree with each other?** They're told not to. Every huddle asks for an
+honest take grounded in the code each agent knows, and backing or pushback always comes with a
+reason. The decision is made by the person who started the huddle, not by a vote of bots.
 
 **Can I use it solo with several agents?** Yes. Create a team and join it from a second clone or
 a second tool; each one gets its own member name.

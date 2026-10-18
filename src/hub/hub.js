@@ -20,6 +20,7 @@ import * as prompt from './prompt.js';
 import * as work from './tasks.js';
 import * as claims from './claims.js';
 import * as asks from './asks.js';
+import * as huddles from './huddles.js';
 
 
 // Settings that change how everyone's agents behave; only the owner may change them.
@@ -343,6 +344,7 @@ export class Hub {
   state(member) {
     const team = this.team(member.team_id);
     const tasks = work.listTasks(this, member.team_id);
+    const talks = huddles.listHuddles(this, member.team_id);
     return {
       me: { id: member.id, name: member.name, role: member.role },
       team: {
@@ -357,6 +359,8 @@ export class Hub {
       tasks,
       claims: claims.activeClaims(this, member.team_id),
       asks_for_me: asks.asksFor(this, member),
+      huddles: talks,
+      huddles_for_me: huddles.huddlesFor(member, talks),
       last_event_id: this.lastEventId(member.team_id),
       hub_version: VERSION,
     };
@@ -367,6 +371,7 @@ export class Hub {
     if (ev.member_id === memberId) return false;
     if (ev.kind === 'prompt_submitted' || ev.kind === 'prompt_locked') return true;
     const d = ev.data || {};
+    if (Array.isArray(d.notify) && d.notify.includes(memberId)) return true;
     return d.to_id === memberId || d.proposed_id === memberId || d.assignee_id === memberId || d.member_id === memberId;
   }
 
@@ -527,12 +532,14 @@ export class Hub {
     return { ok: true };
   }
 
-  // Housekeeping the server runs every few minutes: expired claims and week-old questions go,
-  // and so do teams nobody has touched for retentionDays (0 keeps everything).
+  // Housekeeping the server runs every few minutes: expired claims, week-old questions and
+  // month-old closed huddles go, and so do teams nobody has touched for retentionDays (0 keeps
+  // everything).
   sweep() {
     const now = this.now();
     this.run('DELETE FROM claims WHERE expires_at < ?', now - 3600_000);
     this.run('DELETE FROM asks WHERE created_at < ?', now - 7 * 24 * 3600_000);
+    huddles.sweep(this);
     if (this.retentionDays > 0) {
       const cutoff = now - this.retentionDays * 24 * 3600_000;
       const stale = this.all(
@@ -546,7 +553,7 @@ export class Hub {
 
   deleteTeam(teamId) {
     this.tx(() => {
-      for (const table of ['events', 'prompt_versions', 'tasks', 'claims', 'asks', 'members']) {
+      for (const table of ['events', 'prompt_versions', 'tasks', 'claims', 'asks', 'huddle_votes', 'huddle_posts', 'huddles', 'members']) {
         this.run(`DELETE FROM ${table} WHERE team_id = ?`, teamId);
       }
       this.run('DELETE FROM teams WHERE id = ?', teamId);
@@ -604,5 +611,20 @@ export class Hub {
   }
   reply(member, args) {
     return this.tx(() => asks.reply(this, member, args || {}));
+  }
+  huddleStart(member, args) {
+    return this.tx(() => huddles.start(this, member, args || {}));
+  }
+  huddlePost(member, args) {
+    return this.tx(() => huddles.post(this, member, args || {}));
+  }
+  huddleVote(member, args) {
+    return this.tx(() => huddles.vote(this, member, args || {}));
+  }
+  huddleClose(member, args) {
+    return this.tx(() => huddles.close(this, member, args || {}));
+  }
+  huddle(member, args) {
+    return huddles.detail(this, member, args || {});
   }
 }

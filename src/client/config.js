@@ -8,6 +8,7 @@ import { randomBytes } from 'node:crypto';
 export const DIR_NAME = '.openhuddle';
 const STATE_FILE = 'state.json';
 const SHOWN_MAX = 200;
+const NUDGED_MAX = 200;
 
 function pause(ms) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
@@ -109,8 +110,10 @@ function writeAtomic(file, text) {
 }
 
 // Saves state without ever moving a cursor backwards: whatever another hook already saved wins
-// if it is further along.
-export function saveState(dir, state) {
+// if it is further along. Personal preferences (auto_respond) are only changed by a caller that
+// says so ({ prefs: true }); everyone else keeps what is on disk, so a hook holding an old copy
+// cannot undo a setting changed meanwhile.
+export function saveState(dir, state, { prefs = false } = {}) {
   try {
     mkdirSync(dir, { recursive: true });
     const disk = loadState(dir);
@@ -121,6 +124,12 @@ export function saveState(dir, state) {
     const shown = new Set([...(Array.isArray(onDisk.shown) ? onDisk.shown : []), ...(Array.isArray(next.shown) ? next.shown : [])]);
     next.shown = [...shown].filter((id) => Number(id) > next.cursor).slice(-SHOWN_MAX);
     if (next.settings === undefined && onDisk.settings) next.settings = onDisk.settings;
+    const nudged = new Set([...(Array.isArray(onDisk.nudged) ? onDisk.nudged : []), ...(Array.isArray(next.nudged) ? next.nudged : [])]);
+    if (nudged.size) next.nudged = [...nudged].slice(-NUDGED_MAX);
+    if (!prefs) {
+      if (onDisk.auto_respond !== undefined) next.auto_respond = onDisk.auto_respond;
+      else delete next.auto_respond;
+    }
     writeAtomic(join(dir, STATE_FILE), JSON.stringify(next) + '\n');
   } catch {}
 }
