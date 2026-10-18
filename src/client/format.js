@@ -60,15 +60,16 @@ function titleOf(tasks, key) {
   return t && t.title ? ` — ${t.title}` : '';
 }
 
+// Keyed by ids the hub chose, so the maps have no prototype for an id like "__proto__" to reach.
 export function byId(list) {
-  const out = {};
-  for (const x of list || []) out[x.id] = x;
+  const out = Object.create(null);
+  for (const x of list || []) if (x && x.id != null) out[x.id] = x;
   return out;
 }
 
 export function byKey(list) {
-  const out = {};
-  for (const x of list || []) out[x.key] = x;
+  const out = Object.create(null);
+  for (const x of list || []) if (x && x.key != null) out[x.key] = x;
   return out;
 }
 

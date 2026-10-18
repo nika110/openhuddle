@@ -33,6 +33,8 @@ export const MAX_PATH = 512;
 // absurdly long paths.
 export function cleanRelPath(p) {
   if (typeof p !== 'string' || !p.trim() || p.length > MAX_PATH) return null;
+  // eslint-disable-next-line no-control-regex
+  if (/[\u0000-\u001f\u007f-\u009f]/.test(p)) return null;
   const s = slashes(p.trim());
   if (isAbsolute(s)) return null;
   const parts = collapse(s.split('/'));

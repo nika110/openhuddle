@@ -1,18 +1,19 @@
 import { scrub } from '../shared/scrub.js';
 import { LIMITS } from '../shared/protocol.js';
+import { plainText } from '../shared/plain.js';
 
-// Free text from clients: capped, secrets redacted, trimmed.
+// Free text from clients: capped, terminal escapes and invisible characters removed (first,
+// so they cannot split a key in two for the scrubber), secrets redacted, trimmed.
 export function cleanText(value, max = LIMITS.text) {
   if (value == null) return '';
   let s = String(value);
   if (s.length > max) s = s.slice(0, max);
-  return scrub(s).trim();
+  return scrub(plainText(s)).trim();
 }
 
 // Short labels (names, branches, titles of sections): one line, no control characters.
 export function cleanName(value, max = 40) {
-  return String(value ?? '')
-    .replace(/[\u0000-\u001f\u007f]/g, '')
+  return plainText(String(value ?? ''), { newlines: false })
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, max);

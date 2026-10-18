@@ -6,7 +6,7 @@ import { existsSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { VERSION, DEFAULT_HUB } from '../shared/protocol.js';
 import { Api, ApiError } from './api.js';
-import { findProject, saveConfig, removeConfig, dashboardUrl } from './config.js';
+import { findProject, findConfig, saveConfig, removeConfig, dashboardUrl, machineId, gitTracking } from './config.js';
 import { gitRoot, originUrl, gitUserName, clone, isCloneableUrl } from './git.js';
 import { wireAll, unwireAll, detectTools, wiringStatus } from './wire.js';
 import { runMcp } from './mcp.js';
@@ -151,13 +151,37 @@ function claudeCli(ctx) {
   return ctx.env.OPENHUDDLE_NO_CLAUDE_CLI === '1' ? false : undefined;
 }
 
+const COMMITTED_CONFIG = `This repository has a committed .openhuddle folder, so OpenHuddle ignores it: a team setup belongs to
+one person on one machine and is never shared through git (it holds that person's access token).
+If this is your own team, take it out of git (git rm --cached -r .openhuddle) and run \`npx openhuddle doctor --fix\`.`;
+const UNCONFIRMED_CONFIG = {
+  other_machine: 'This folder holds an OpenHuddle team setup made on another machine, so it is not used here.',
+  legacy: 'This folder holds an OpenHuddle team setup written by an older version, which this version does not use until it is confirmed.',
+  unverified: 'This folder holds an OpenHuddle team setup written by an older version, outside any git repository, which this version does not use until it is confirmed.',
+};
+const CONFIRM_HINT = `If you set up this team yourself, run \`npx openhuddle doctor --fix\` here once to use it on this machine.
+If this folder came from someone else, delete its .openhuddle folder (and run \`npx openhuddle join <invite-link>\` for your own team).`;
+
+function explainUnused(ctx, found) {
+  if (!found) ctx.err(NOT_IN_TEAM);
+  else if (found.trust === 'committed') ctx.err(COMMITTED_CONFIG);
+  else ctx.err(`${UNCONFIRMED_CONFIG[found.trust] || UNCONFIRMED_CONFIG.other_machine}\n${CONFIRM_HINT}`);
+}
+
 function needProject(ctx, flags) {
-  const project = findProject(flags.dir || ctx.cwd);
-  if (!project) {
-    ctx.err(NOT_IN_TEAM);
-    return null;
-  }
-  return project;
+  const start = flags.dir || ctx.cwd;
+  const project = findProject(start);
+  if (project) return project;
+  explainUnused(ctx, findConfig(start));
+  return null;
+}
+
+// create and join write a token into .openhuddle/config.json; a tracked one would carry it
+// into the repository's history, so they refuse there.
+function refuseCommitted(ctx, root) {
+  if (gitTracking(root) !== 'tracked') return false;
+  ctx.err(COMMITTED_CONFIG);
+  return true;
 }
 
 function apiOf(project, opts) {
@@ -180,9 +204,18 @@ export function parseInvite(link, hubOverride) {
   return null;
 }
 
-function repoDirName(url) {
-  const last = String(url).replace(/[\\/]+$/, '').split(/[\\/:]/).pop() || 'project';
-  return last.replace(/\.git$/i, '') || 'project';
+// The folder a cloned team repo goes into: the repo's name, reduced to plain characters, never
+// `.`, `..` or a hidden name, so a repo link from the hub cannot pick a folder outside this one.
+export function repoDirName(url) {
+  const last = String(url ?? '').replace(/[\\/]+$/, '').split(/[\\/:]/).pop() || '';
+  const name = last
+    .replace(/\.git$/i, '')
+    .replace(/[^A-Za-z0-9._-]+/g, '-')
+    .replace(/^[.-]+/, '')
+    .slice(0, 100)
+    .replace(/\.+$/, '');
+  if (!name) return 'project';
+  return /^(con|prn|aux|nul|com\d|lpt\d)$/i.test(name) ? `${name}-repo` : name;
 }
 
 function sameRepo(a, b) {
@@ -216,6 +249,8 @@ const COMMANDS = {
       ctx.err(`This project is already in the team "${existing.config.team_name ?? existing.config.team_id}". See it with \`npx openhuddle status\`, or leave with \`npx openhuddle leave\`.`);
       return 1;
     }
+    if (refuseCommitted(ctx, root)) return 1;
+    machineId({ create: true }); // fails here, before a team exists, if the home folder is not writable
     const hub = hubUrl(ctx, flags);
     const tools = detectTools({ home: ctx.home });
     const repo_url = originUrl(root);
@@ -261,6 +296,8 @@ const COMMANDS = {
       ctx.err(`This project is already in the team "${existing.config.team_name ?? existing.config.team_id}". Run \`npx openhuddle leave\` first to switch teams.`);
       return 1;
     }
+    if (root && refuseCommitted(ctx, root)) return 1;
+    machineId({ create: true });
     const tools = detectTools({ home: ctx.home });
     const res = await Api.anon(inv.hub, { timeoutMs: 15000 }).post('/api/join', {
       code: inv.code,
@@ -283,6 +320,10 @@ const COMMANDS = {
           }
         }
         root = gitRoot(dest) || dest;
+        if (refuseCommitted(ctx, root)) {
+          await new Api(inv.hub, res.token, { timeoutMs: 8000 }).post('/api/leave', {}).catch(() => {});
+          return 1;
+        }
       } else {
         ctx.out('This folder is not a git repository and the team has no repo link, so OpenHuddle is set up right here.');
         root = resolve(ctx.cwd);
@@ -397,8 +438,19 @@ const COMMANDS = {
   },
 
   async doctor(ctx, flags) {
-    const project = needProject(ctx, flags);
-    if (!project) return 1;
+    const start = flags.dir || ctx.cwd;
+    let project = findProject(start);
+    if (!project) {
+      // `doctor --fix`, typed by the user in this folder, is how a setup this machine has not
+      // confirmed (older version, other computer) becomes this machine's. Never a committed one.
+      const found = findConfig(start);
+      if (!found || found.trust === 'committed' || !flags.fix) {
+        explainUnused(ctx, found);
+        return 1;
+      }
+      ctx.out(`Using the team setup in ${found.root} on this machine from now on (hub ${found.config.hub}).`);
+      project = saveConfig(found.root, found.config);
+    }
     let ok = true;
     const mark = (good, label, hint) => {
       if (!good) ok = false;
@@ -453,8 +505,21 @@ const COMMANDS = {
   },
 
   async leave(ctx, flags) {
-    const project = needProject(ctx, flags);
-    if (!project) return 1;
+    const start = flags.dir || ctx.cwd;
+    const project = findProject(start);
+    if (!project) {
+      // A setup this machine never confirmed: nothing to tell a hub, but the local traces go.
+      const found = findConfig(start);
+      if (!found) {
+        ctx.err(NOT_IN_TEAM);
+        return 1;
+      }
+      const lines = unwireAll(found.root, { home: ctx.home, claudeCli: claudeCli(ctx) });
+      removeConfig(found.root);
+      ctx.out(`Removed the OpenHuddle setup from ${found.root} (it was not made on this machine, so no hub was told).`);
+      for (const l of lines) ctx.out(`  - ${l}`);
+      return 0;
+    }
     try {
       await apiOf(project, { timeoutMs: 8000 }).post('/api/leave', {});
     } catch (e) {

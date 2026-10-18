@@ -30,6 +30,8 @@ const TYPES = {
 };
 
 const PING_MS = 25_000;
+// Addresses or members a limiter remembers at once; beyond that it forgets the idle ones.
+const LIMITER_KEYS = 50_000;
 
 // Token bucket per key: `capacity` requests per `windowMs`, refilled continuously.
 class Limiter {
@@ -41,6 +43,10 @@ class Limiter {
 
   take(key) {
     const now = Date.now();
+    if (this.buckets.size >= LIMITER_KEYS) {
+      this.sweep();
+      if (this.buckets.size >= LIMITER_KEYS) this.buckets.clear();
+    }
     const b = this.buckets.get(key) || { tokens: this.capacity, at: now };
     b.tokens = Math.min(this.capacity, b.tokens + ((now - b.at) * this.capacity) / this.windowMs);
     b.at = now;
@@ -61,7 +67,7 @@ export function escapeHtml(s) {
 }
 
 function sendJson(res, status, body) {
-  res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+  res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' });
   res.end(JSON.stringify(body));
 }
 
@@ -125,9 +131,14 @@ export async function startHub({
   const memberStreams = new Map();
   const openLimiter = new Limiter(20, 3600_000);
   const memberLimiter = new Limiter(600, 60_000);
+  // Requests with a missing or unknown token, per address. Tokens are 256 random bits, so this
+  // is about load and noise, not about making guessing infeasible: past the budget, misses get
+  // a 429 instead of a 401. A valid token is never held up by it.
+  const authLimiter = new Limiter(60, 60_000);
   const sweeper = setInterval(() => {
     openLimiter.sweep();
     memberLimiter.sweep();
+    authLimiter.sweep();
     try {
       hub.sweep();
     } catch (err) {
@@ -241,7 +252,16 @@ export async function startHub({
 
     const auth = String(req.headers.authorization || '');
     const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
-    const member = hub.auth(token);
+    let member;
+    try {
+      member = hub.auth(token);
+    } catch (err) {
+      // Valid tokens are never held up by a guesser sharing their address; the guesses are.
+      if (err instanceof HubError && err.status === 401 && !authLimiter.take(clientIp(req))) {
+        throw new HubError(429, 'rate_limited', 'Too many requests without a valid token from here. Try again in a minute.');
+      }
+      throw err;
+    }
     if (!memberLimiter.take(member.id)) throw new HubError(429, 'rate_limited', 'Slow down: too many requests.');
 
     if (method === 'GET') {

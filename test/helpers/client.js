@@ -8,6 +8,9 @@ export function tempDir(prefix = 'vc-test-') {
   return mkdtempSync(join(tmpdir(), prefix));
 }
 
+// In-process code (saveConfig's machine id, installApp) must not touch the real ~/.openhuddle.
+if (!process.env.OPENHUDDLE_HOME) process.env.OPENHUDDLE_HOME = join(tempDir('vc-home-'), '.openhuddle');
+
 export function git(cwd, ...args) {
   return execFileSync('git', ['-c', 'user.name=Tester', '-c', 'user.email=t@example.com', ...args], {
     cwd,

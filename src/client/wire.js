@@ -5,8 +5,10 @@ import { join, resolve, dirname, relative, isAbsolute } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { excludeFromGit } from './config.js';
+import { excludeFromGit, openhuddleHome } from './config.js';
 import { gitRoot, hooksDir, isTracked } from './git.js';
+
+export { openhuddleHome };
 
 const PKG_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 export const EDIT_MATCHER = 'Edit|Write|MultiEdit|NotebookEdit';
@@ -24,10 +26,6 @@ const GIT_END = '# <<< openhuddle';
 
 const fwd = (p) => String(p).replace(/\\/g, '/');
 const samePath = (a, b) => resolve(a).toLowerCase() === resolve(b).toLowerCase();
-
-export function openhuddleHome(home = homedir()) {
-  return process.env.OPENHUDDLE_HOME || join(home, '.openhuddle');
-}
 
 function codexDir(home) {
   if (home === homedir() && process.env.CODEX_HOME) return process.env.CODEX_HOME;

@@ -1,7 +1,7 @@
 {
   "name": "openhuddle",
   "displayName": "OpenHuddle",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Multiplayer mode for AI coding agents. Your team's Claude Code, Codex and Cursor agents brainstorm, argue designs and review each other's work in huddles, share a co-written master prompt and a task board, and pause before editing a teammate's file. Start with /openhuddle:create or /openhuddle:join <invite-link>.",
   "author": {
     "name": "nika110",

@@ -94,3 +94,34 @@ test('ids: formats', () => {
   assert.match(newSecret(), /^[A-Za-z0-9_-]{22}$/);
   assert.equal(sha256('x').length, 64);
 });
+
+test('plain: terminal escapes, C1 controls, carriage returns and direction overrides are removed', async () => {
+  const { plainText, plainJson } = await import('../src/shared/plain.js');
+  const evil = 'ok\u001b]0;pwned\u0007 \u001b[2J\u009b31m‮reversed⁦x⁩ line\r\nnext\tcol\u0000';
+  assert.equal(plainText(evil), 'ok reversedx line\nnext\tcol');
+  assert.equal(plainText('\u001b]52;c;c2VjcmV0\u001b\\pasted \u001b[1;31mred\u001b[0m \u001b(Bplain'), 'pasted red plain');
+  assert.equal(plainText('a\r\nb\nc', { newlines: false }), 'a bc');
+  const json = plainJson({ a: 'x\u001b[31m', n: 1, list: ['‮y', { deep: 'z\u0007' }], ok: true });
+  assert.deepEqual(json, { a: 'x', n: 1, list: ['y', { deep: 'z' }], ok: true });
+});
+
+test('plain: invisible characters go, right-to-left marks and emoji stay, a lone escape never eats a newline', async () => {
+  const { plainText, plainJson } = await import('../src/shared/plain.js');
+  assert.equal(plainText('a​b­c⁠d﻿e\u{E0041}\u{E007F}f'), 'abcdef');
+  assert.equal(plainText('مرحبا ‎123 👨‍👩‍👧 ✔️'), 'مرحبا ‎123 👨‍👩‍👧 ✔️');
+  assert.equal(plainText('line1\u001b\nline2'), 'line1\nline2');
+  assert.equal(plainText('\u001b]0;title without end\nnext'), '\nnext');
+  const out = plainJson(JSON.parse('{"__proto__":{"conflicts":[1]},"ok":"x"}'));
+  assert.equal(out.conflicts, undefined);
+  assert.equal(Object.getPrototypeOf(out), Object.prototype);
+  let deep = 'x';
+  for (let i = 0; i < 40; i++) deep = [deep];
+  assert.equal(JSON.stringify(plainJson(deep)).includes('x'), false, 'absurd nesting is cut, not passed through');
+});
+
+test('paths: a path with control characters is refused', async () => {
+  const { cleanRelPath } = await import('../src/shared/paths.js');
+  assert.equal(cleanRelPath('src/a\u001b[31m.ts'), null);
+  assert.equal(cleanRelPath('src/a\u0085.ts'), null);
+  assert.equal(cleanRelPath('src/ok.ts'), 'src/ok.ts');
+});

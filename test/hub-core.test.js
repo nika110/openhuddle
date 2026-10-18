@@ -206,3 +206,34 @@ test('owner can delete the whole team at once; members cannot', () => {
   }
   void created;
 });
+
+test('text from clients loses terminal escapes and direction overrides before it is stored', () => {
+  const { hub } = makeHub();
+  const { auth } = crew(hub, ['ana', 'ben']);
+  hub.post(auth(0), { kind: 'update', text: 'done\u001b]0;owned\u0007 \u001b[2J‮not really\r\nline two' });
+  const ev = hub.events(auth(1), { since: 0 }).events.pop();
+  assert.equal(ev.data.text, 'done not really\nline two');
+  hub.heartbeat(auth(0), { branch: 'feat\u001b[31m/x\u0085y', activity: 'a\u0007b' });
+  const me = hub.state(auth(1)).members.find((m) => m.name === 'ana');
+  assert.equal(me.status.branch, 'feat/xy');
+  assert.equal(me.status.activity, 'ab');
+});
+
+test('a team keeps at most its newest 1000 questions', () => {
+  const { hub } = makeHub();
+  const { auth } = crew(hub, ['ana', 'ben']);
+  for (let i = 0; i < 1120; i++) hub.ask(auth(i % 2), { to: i % 2 ? 'ana' : 'ben', question: `q${i}` });
+  const n = hub.get('SELECT COUNT(*) AS n FROM asks').n;
+  assert.ok(n <= 1050 && n > 900, `kept ${n}`);
+  assert.ok(hub.get("SELECT 1 AS x FROM asks WHERE id = 'Q1120'"), 'the newest stay');
+  assert.ok(!hub.get("SELECT 1 AS x FROM asks WHERE id = 'Q1'"), 'the oldest are gone');
+});
+
+test('a secret split by an escape or an invisible character is still redacted', () => {
+  const { hub } = makeHub();
+  const { auth } = crew(hub, ['ana', 'ben']);
+  const tail = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  hub.post(auth(0), { kind: 'update', text: `one ghp_\u001b[0m${tail} two sk-​${tail}` });
+  const ev = hub.events(auth(1), { since: 0 }).events.pop();
+  assert.equal(ev.data.text, 'one [redacted] two [redacted]');
+});

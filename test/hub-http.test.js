@@ -234,3 +234,26 @@ test('http: create rate limit 429 after 20', async () => {
   assert.equal(status, 429);
 });
 
+
+test('http: JSON answers carry nosniff; repeated requests with bad tokens get 429 without touching the team', async () => {
+  const own = await startHub({ port: 0, host: '127.0.0.1', log: () => {} });
+  const shared = hubUrl;
+  hubUrl = own.url;
+  try {
+    const { a } = await crew();
+    const ok = await call('GET', '/api/state', { token: a.token });
+    assert.equal(ok.headers.get('x-content-type-options'), 'nosniff');
+    let status = 401;
+    let tries = 0;
+    while (status === 401 && tries < 80) {
+      status = (await call('GET', '/api/state', { token: `vc_guess${tries++}` })).status;
+    }
+    assert.equal(status, 429);
+    assert.ok(tries > 50 && tries <= 62, `tripped after ${tries}`);
+    assert.equal((await call('GET', '/api/state', { token: a.token })).status, 200, 'a valid token on the same address still works');
+    assert.equal((await call('GET', '/api/state')).status, 429, 'missing tokens count as guesses too');
+  } finally {
+    hubUrl = shared;
+    await own.close();
+  }
+});

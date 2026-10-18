@@ -6,7 +6,7 @@ import { spawn } from 'node:child_process';
 import { findProject, saveConfig, loadState, saveState, removeConfig, dashboardUrl } from '../src/client/config.js';
 import { Api, ApiError } from '../src/client/api.js';
 import { gitRoot, gitInfo, originUrl, hooksDir } from '../src/client/git.js';
-import { frame, eventLine, briefing, newsBlock, snapshotText, safeName, safeTaskKey, newerVersion } from '../src/client/format.js';
+import { frame, eventLine, briefing, newsBlock, snapshotText, safeName, safeTaskKey, newerVersion, byId as byIdOf } from '../src/client/format.js';
 import { makeRepo, tempDir, cleanup, git } from './helpers/client.js';
 
 const CFG = { hub: 'http://localhost:1', team_id: 'tabc', member_id: 'm1', member_name: 'nika', token: 'vc_x' };
@@ -293,4 +293,115 @@ test('api: unreachable hub → ApiError code unreachable within timeout', async 
   const t0 = Date.now();
   await assert.rejects(api.get('/api/state'), (e) => e instanceof ApiError && e.code === 'unreachable');
   assert.ok(Date.now() - t0 < 2000);
+});
+
+test('config: only a config.json stamped by this machine is used; planted or copied ones are ignored but explained', async () => {
+  const { findConfig, machineId } = await import('../src/client/config.js');
+  const repo = makeRepo();
+  try {
+    const cfgDir = join(repo, '.openhuddle');
+    mkdirSync(cfgDir, { recursive: true });
+    const write = (c) => writeFileSync(join(cfgDir, 'config.json'), JSON.stringify(c));
+    // Stamped elsewhere, or with null, a number or an empty string: never this machine's.
+    for (const machine of ['f'.repeat(32), null, 0, '']) {
+      write({ ...CFG, machine });
+      assert.equal(findProject(repo), null, `machine=${JSON.stringify(machine)}`);
+      assert.equal(findConfig(repo).trust, 'other_machine');
+    }
+    // Unstamped and committed: the repository brought it.
+    write(CFG);
+    git(repo, 'add', '-f', '.openhuddle/config.json');
+    git(repo, 'commit', '-q', '-m', 'planted');
+    assert.equal(findProject(repo), null);
+    assert.equal(findConfig(repo).trust, 'committed');
+    // Unstamped and untracked in a repo: an older OpenHuddle here, or an archive. Not used until doctor --fix.
+    git(repo, 'rm', '-q', '--cached', '.openhuddle/config.json');
+    git(repo, 'commit', '-q', '-m', 'unplanted');
+    assert.equal(findProject(repo), null);
+    assert.equal(findConfig(repo).trust, 'legacy');
+    // saveConfig (create, join, doctor --fix) stamps it; the stamped config is trusted.
+    const saved = saveConfig(repo, CFG);
+    assert.match(saved.config.machine, /^[a-f0-9]{32}$/);
+    assert.equal(saved.config.machine, machineId());
+    assert.equal(findConfig(repo).trust, 'machine');
+    assert.equal(findProject(repo).config.token, 'vc_x');
+    assert.ok(existsSync(join(process.env.OPENHUDDLE_HOME, 'machine')), 'the id lives in OPENHUDDLE_HOME');
+    // A planted config in a subfolder does not hide the trusted one above it.
+    const sub = join(repo, 'packages', 'web');
+    mkdirSync(join(sub, '.openhuddle'), { recursive: true });
+    writeFileSync(join(sub, '.openhuddle', 'config.json'), JSON.stringify({ ...CFG, hub: 'http://evil.invalid', machine: null }));
+    assert.equal(findProject(sub).root, repo);
+    assert.equal(findProject(sub).config.hub, CFG.hub);
+    // Unstamped, outside any repository (an unpacked archive): unverified.
+    const loose = tempDir();
+    try {
+      mkdirSync(join(loose, '.openhuddle'), { recursive: true });
+      writeFileSync(join(loose, '.openhuddle', 'config.json'), JSON.stringify(CFG));
+      assert.equal(findProject(loose), null);
+      assert.equal(findConfig(loose).trust, 'unverified');
+      saveConfig(loose, CFG);
+      assert.equal(findConfig(loose).trust, 'machine', 'a stamped config needs no git');
+    } finally {
+      cleanup(loose);
+    }
+  } finally {
+    cleanup(repo);
+  }
+});
+
+test('config: git tracking is checked without regard to letter case (a clone on Windows or macOS)', async () => {
+  const { findConfig, gitTracking } = await import('../src/client/config.js');
+  const repo = makeRepo();
+  try {
+    mkdirSync(join(repo, '.OpenHuddle'));
+    writeFileSync(join(repo, '.OpenHuddle', 'Config.json'), JSON.stringify(CFG));
+    git(repo, 'add', '-f', '.OpenHuddle/Config.json');
+    git(repo, 'commit', '-q', '-m', 'planted in another case');
+    assert.equal(gitTracking(repo), 'tracked');
+    const found = findConfig(repo); // null on a case-sensitive file system; never a usable project
+    assert.ok(found === null || found.trust === 'committed', JSON.stringify(found));
+    assert.equal(findProject(repo), null);
+  } finally {
+    cleanup(repo);
+  }
+});
+
+test('api: strings from the hub are plain text (no terminal escapes or direction overrides), over HTTP and SSE', async () => {
+  const http = await import('node:http');
+  const { parseSse } = await import('../src/client/api.js');
+  const server = http.createServer((req, res) => {
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ text: 'hi\u001b]0;owned\u0007\u001b[2J', list: ['‮left', { deep: 'x\r\ny' }], n: 3 }));
+  });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  try {
+    const api = new Api(`http://127.0.0.1:${server.address().port}`, 'vc_t');
+    assert.deepEqual(await api.get('/api/state'), { text: 'hi', list: ['left', { deep: 'x\ny' }], n: 3 });
+  } finally {
+    server.close();
+  }
+  assert.deepEqual(parseSse('event: update\ndata: {"kind":"update","data":{"text":"a\\u001b[31mb"}}'), { kind: 'update', data: { text: 'ab' } });
+});
+
+test('format: byId and byKey cannot be steered into a prototype by an id', () => {
+  const members = byIdOf([{ id: '__proto__', name: 'x' }, { id: 'm1', name: 'ana' }]);
+  assert.equal(members.m1.name, 'ana');
+  assert.equal(members.__proto__.name, 'x');
+  assert.equal(Object.getPrototypeOf(members), null);
+  assert.equal({}.name, undefined);
+});
+
+test('api: a hub error on the live stream is plain text too', async () => {
+  const http = await import('node:http');
+  const server = http.createServer((req, res) => {
+    res.writeHead(403, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ error: 'no\u001b[31m way‮', code: 'nope\u0007' }));
+  });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  try {
+    const api = new Api(`http://127.0.0.1:${server.address().port}`, 'vc_t');
+    await assert.rejects(api.stream(0, () => {}), (e) => e instanceof ApiError && e.message === 'no way' && e.code === 'nope');
+  } finally {
+    server.close();
+  }
 });

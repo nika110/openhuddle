@@ -335,3 +335,73 @@ test('cli: delete-team needs --yes, then deletes the team and the local setup', 
     cleanup(repo);
   }
 });
+
+test('cli: a cloned repo lands in a plain folder name, never outside the current one', async () => {
+  const { repoDirName } = await import('../src/client/cli.js');
+  assert.equal(repoDirName('https://github.com/example/pizza.git'), 'pizza');
+  assert.equal(repoDirName('git@github.com:example/pizza'), 'pizza');
+  assert.equal(repoDirName('https://evil.example/..'), 'project');
+  assert.equal(repoDirName('https://evil.example/.'), 'project');
+  assert.equal(repoDirName('https://evil.example/.ssh.git'), 'ssh');
+  assert.equal(repoDirName('https://evil.example/a b$c.git'), 'a-b-c');
+  assert.equal(repoDirName(''), 'project');
+});
+
+test('cli: a committed .openhuddle is ignored and never overwritten with a real token', async () => {
+  const { mkdirSync } = await import('node:fs');
+  const repo = makeRepo({ origin: FAKE });
+  try {
+    mkdirSync(join(repo, '.openhuddle'), { recursive: true });
+    writeFileSync(join(repo, '.openhuddle', 'config.json'), JSON.stringify({ hub: hub.url, team_id: 'tplanted', member_id: 'm', member_name: 'x', token: 'vc_planted' }));
+    git(repo, 'add', '-f', '.openhuddle/config.json');
+    git(repo, 'commit', '-q', '-m', 'planted');
+    const io = capture(repo);
+    assert.equal(await main(['status'], io), 1);
+    assert.match(io.stderr, /committed/);
+    const hookOut = capture(repo, { stdin: JSON.stringify({ cwd: repo, hook_event_name: 'SessionStart' }) });
+    assert.equal(await main(['hook', 'session-start'], hookOut), 0);
+    assert.equal(hookOut.stdout, '', 'hooks stay silent in a repository that brought its own config');
+    const create = capture(repo);
+    assert.equal(await main(['create', '--hub', hub.url, '--as', 'victim'], create), 1);
+    assert.match(create.stderr, /committed/);
+    assert.equal(git(repo, 'status', '--porcelain'), '', 'the tracked file was not touched');
+    const fix = capture(repo);
+    assert.equal(await main(['doctor', '--fix'], fix), 1, 'doctor --fix refuses a committed config too');
+    assert.ok(readFileSync(join(repo, '.openhuddle', 'config.json'), 'utf8').includes('vc_planted'));
+  } finally {
+    cleanup(repo);
+  }
+});
+
+test('cli: doctor --fix adopts an older or copied setup on this machine; leave cleans one up without a hub', async () => {
+  const { mkdirSync } = await import('node:fs');
+  const { Api } = await import('../src/client/api.js');
+  const made = await Api.anon(hub.url).post('/api/teams', { team_name: 'legacy', member_name: 'lea' });
+  const repo = makeRepo({ origin: FAKE });
+  try {
+    mkdirSync(join(repo, '.openhuddle'), { recursive: true });
+    const legacy = { hub: hub.url, team_id: made.team_id, team_name: 'legacy', member_id: made.member_id, member_name: 'lea', token: made.token };
+    writeFileSync(join(repo, '.openhuddle', 'config.json'), JSON.stringify(legacy));
+    const before = capture(repo);
+    assert.equal(await main(['status'], before), 1);
+    assert.match(before.stderr, /older version/);
+    const fix = capture(repo);
+    assert.equal(await main(['doctor', '--fix'], fix), 0, fix.stderr);
+    assert.match(fix.stdout, /on this machine from now on/);
+    assert.match(readFileSync(join(repo, '.openhuddle', 'config.json'), 'utf8'), /"machine": "[a-f0-9]{32}"/);
+    const after = capture(repo);
+    assert.equal(await main(['status'], after), 0, after.stderr);
+    assert.match(after.stdout, /lea/);
+    // Now pretend the folder was copied from another computer.
+    writeFileSync(join(repo, '.openhuddle', 'config.json'), JSON.stringify({ ...legacy, machine: 'e'.repeat(32) }));
+    const other = capture(repo);
+    assert.equal(await main(['status'], other), 1);
+    assert.match(other.stderr, /another machine/);
+    const leave = capture(repo);
+    assert.equal(await main(['leave'], leave), 0);
+    assert.match(leave.stdout, /no hub was told/);
+    assert.ok(!existsSync(join(repo, '.openhuddle')));
+  } finally {
+    cleanup(repo);
+  }
+});

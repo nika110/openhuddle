@@ -296,6 +296,12 @@ local hub with a demo team and prints the dashboard link.
 - **Fails open.** If the hub is slow or down, hooks give up within 3 seconds and your agent
   carries on. OpenHuddle never auto-approves anything.
 - **Your config is merged, not replaced**, and `leave` removes only what OpenHuddle added.
+- **A team setup belongs to one machine.** A `.openhuddle/config.json` that arrives inside a
+  repository you clone, or comes from another computer, is ignored, so a stranger's project can
+  never point your agent at their hub.
+- **What you see is what was written.** Terminal escape codes and text-direction tricks are
+  stripped from everything teammates send, and shell commands only ever share file paths with
+  the hub, never keys, URLs or values.
 - **The invite link is the key.** Anyone with it can join, so share it like a password. Links
   expire after 7 days; the owner can reset them and remove members.
 - **The hub never sees your code.** It sees names, the master prompt, tasks, the paths of files

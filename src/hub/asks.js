@@ -52,6 +52,16 @@ export function ask(hub, member, { to, question }) {
     q,
     hub.now(),
   );
+  // A team keeps its newest questions only, so one busy agent cannot grow the table without end.
+  if (next_ask % 50 === 0) {
+    hub.run(
+      `DELETE FROM asks WHERE team_id = ? AND rowid NOT IN
+         (SELECT rowid FROM asks WHERE team_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?)`,
+      member.team_id,
+      member.team_id,
+      LIMITS.asks_per_team,
+    );
+  }
   hub.emit(member.team_id, member.id, 'ask', { ask_id: id, to_id: target.id, question: q });
   return {
     ask_id: id,

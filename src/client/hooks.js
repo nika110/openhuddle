@@ -2,18 +2,26 @@
 // agent and pause edits to files a teammate holds. They always fail open: on any error or
 // after HOOK_TIMEOUT_MS they return '' and the agent carries on untouched.
 import { Api } from './api.js';
-import { findProject, loadState, saveState } from './config.js';
+import { findProject, findConfig, loadState, saveState } from './config.js';
 import { gitInfo, lastCommit } from './git.js';
 import { frame, briefing, newsBlock, huddleLine, byId, clip, clock, safeName, safeTaskKey } from './format.js';
 import { latestNews } from './news.js';
-import { isAbsolute, join } from 'node:path';
+import { isAbsolute, join, dirname } from 'node:path';
+import { existsSync } from 'node:fs';
 import { toRepoPath } from '../shared/paths.js';
+import { scrub } from '../shared/scrub.js';
 import { HOOK_TIMEOUT_MS } from '../shared/protocol.js';
 
 export const HOOK_NAMES = ['session-start', 'prompt', 'pre-edit', 'post-edit', 'stop', 'git-commit'];
 
 const HEADER =
   'openhuddle: you are part of a team. Other people\'s AI agents are working on this project right now. Use team_sync, task, team_ask and team_post to stay in sync.';
+
+// Fixed text (nothing from the config in it) for a folder whose team setup this machine has
+// not confirmed: written by an older version, or on another computer.
+const UNCONFIRMED =
+  'openhuddle: this folder holds an OpenHuddle team setup that this machine has not confirmed (written by an older version, or on another computer), so the team tools are off here. ' +
+  'Tell your user, in one line: if they set up this team themselves, run `npx openhuddle doctor --fix` in this folder once; if the folder came from someone else, delete its .openhuddle folder.';
 
 export async function runHook(name, input = {}, ctx = {}) {
   const ms = ctx.timeoutMs ?? HOOK_TIMEOUT_MS;
@@ -57,14 +65,35 @@ const SHELL_TOOLS = ['Bash', 'PowerShell'];
 const SHELL_WRITE =
   /(?:^|[^<>&0-9])>>?(?!&)|\b(?:tee|mv|cp|rm|truncate|touch|install|ln|unlink)\b|\bsed\b[^|;&]*\s(?:-[a-zA-Z]*i\b|--in-place)|\bperl\b[^|;&]*\s-[a-zA-Z]*i|\bdd\b[^|;&]*\bof=|\b(?:Set-Content|Add-Content|Out-File|Remove-Item|Move-Item|Copy-Item|New-Item|Rename-Item|Clear-Content)\b/i;
 
-// Repo-relative paths a shell command mentions, resolved against the shell's cwd.
+// A word that reads like a file name: an optional leading dot, letters, digits and _ + ~ -, then
+// up to three short letter-only extensions. A long run of letters and digits with no separator
+// reads like a token instead (versions, addresses and keys fail this too).
+function fileLike(token) {
+  const m = /^\.?([\p{L}\p{N}_+~-]+)(?:\.[\p{L}_-]{1,5}){0,3}$/u.exec(token);
+  if (!m || !/\p{L}/u.test(token)) return false;
+  const base = m[1];
+  return !(base.length >= 12 && /\p{N}/u.test(base) && /\p{L}/u.test(base) && !/[_~+-]/.test(base));
+}
+const URL_LIKE = /^[a-z][a-z0-9+.-]*:\/\//i;
+
+// Repo-relative paths a shell command mentions, resolved against the shell's cwd. Only paths go
+// to the hub, never the command: key-shaped words are redacted first, flags (with their =values)
+// and URLs are skipped, a word with a slash counts only when its folder exists here, a word with
+// a dot only when it reads like a file name or exists, and any other word only when it exists.
 function shellPaths(command, cwd, root) {
   const out = new Set();
-  for (const token of String(command).split(/[\s'"`;|&()<>,]+/)) {
-    if (!token || token.startsWith('-') || !/[./\\]/.test(token)) continue;
-    const rel = toRepoPath(isAbsolute(token) || /^[a-zA-Z]:/.test(token) ? token : join(cwd, token), root);
-    if (rel) out.add(rel);
-    if (out.size >= 20) break;
+  for (const word of scrub(String(command)).split(/[\s'"`;|&()<>,]+/)) {
+    if (!word || word.startsWith('-') || URL_LIKE.test(word)) continue;
+    for (const token of word.split('=')) {
+      if (!token || URL_LIKE.test(token)) continue;
+      const rel = toRepoPath(isAbsolute(token) || /^[a-zA-Z]:/.test(token) ? token : join(cwd, token), root);
+      if (!rel) continue;
+      const here = join(root, rel);
+      const ok = /[/\\]/.test(token) ? existsSync(dirname(here)) : token.includes('.') ? fileLike(token) || existsSync(here) : existsSync(here);
+      if (!ok) continue;
+      out.add(rel);
+      if (out.size >= 20) return [...out];
+    }
   }
   return [...out];
 }
@@ -130,8 +159,16 @@ function waitingNudge(state, st) {
 }
 
 async function inner(name, input, ctx, ms, run = { timedOut: false }) {
-  const project = ctx.project ?? findProject(input.cwd || ctx.cwd || process.cwd());
-  if (!project) return '';
+  const start = input.cwd || ctx.cwd || process.cwd();
+  const project = ctx.project ?? findProject(start);
+  if (!project) {
+    // No hub is contacted here; the only words that reach the agent are our own.
+    if (name === 'session-start' && !ctx.project) {
+      const trust = findConfig(start)?.trust;
+      if (trust && trust !== 'committed') return context('SessionStart', UNCONFIRMED);
+    }
+    return '';
+  }
   const api = new Api(project.config.hub, project.config.token, { timeoutMs: Math.max(200, ms - 300) });
   const { root, dir } = project;
   const save = (st) => {
@@ -191,10 +228,11 @@ async function inner(name, input, ctx, ms, run = { timedOut: false }) {
       const c = (res.conflicts || [])[0];
       if (!c) return '';
       // This reason reaches the agent without a <team-data> frame, so teammate labels are reduced
-      // to inert characters.
+      // to inert characters, and the path is only ever one this hook asked about.
       const key = safeTaskKey(c.task_key);
+      const path = paths.includes(c.path) ? c.path : 'the file you are about to change';
       const reason =
-        `openhuddle: ${safeName(c.member_name)} is working on ${c.path}${key ? ` (task ${key})` : ''}, held until ${clock(c.expires_at)}. ` +
+        `openhuddle: ${safeName(c.member_name)} is working on ${path}${key ? ` (task ${key})` : ''}, held until ${clock(c.expires_at)}. ` +
         'Ask them first with team_ask, or work on another file.';
       return JSON.stringify({
         hookSpecificOutput: {

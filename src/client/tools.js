@@ -1,6 +1,6 @@
 // The team tools an agent gets through MCP. Each returns plain text for the agent.
 import { Api, ApiError } from './api.js';
-import { findProject, loadState, saveState } from './config.js';
+import { findProject, findConfig, loadState, saveState } from './config.js';
 import { gitInfo } from './git.js';
 import { frame, briefing, newsBlock, snapshotText, promptText, taskBoard, huddleText, huddleLine, byId, clip, clock } from './format.js';
 import { latestNews } from './news.js';
@@ -10,6 +10,15 @@ import { PROMPT_SECTIONS, HUDDLE_KINDS } from '../shared/protocol.js';
 
 export const NOT_IN_TEAM =
   'This folder is not part of an OpenHuddle team. Run `npx openhuddle join <invite-link>` here (or `npx openhuddle create` to start a team).';
+// Fixed text, nothing from the config in it.
+export const UNCONFIRMED_TEAM =
+  'This folder holds an OpenHuddle team setup that this machine has not confirmed (written by an older version, or on another computer), so the team tools are off. ' +
+  'If your user set up this team themselves, they run `npx openhuddle doctor --fix` here once; if the folder came from someone else, they delete its .openhuddle folder.';
+
+function notInTeam(dir) {
+  const trust = dir ? findConfig(dir)?.trust : null;
+  return trust && trust !== 'committed' ? UNCONFIRMED_TEAM : NOT_IN_TEAM;
+}
 
 export const INSTRUCTIONS = `You are working in an OpenHuddle team: other people's AI agents are building this same project at the same time, each on their own machine. These tools keep you in sync with them.
 
@@ -242,7 +251,7 @@ function friendly(e, hub) {
 export async function callTool(ctx, name, args = {}) {
   if (!TOOLS.some((t) => t.name === name)) throw new Error(`Unknown tool: ${name}`);
   resolveProject(ctx);
-  if (!ctx.project) return NOT_IN_TEAM;
+  if (!ctx.project) return notInTeam(ctx.dir);
   try {
     return await HANDLERS[name](ctx, args || {});
   } catch (e) {
@@ -319,7 +328,8 @@ const HANDLERS = {
       const body = { id, kind: a, text: scrub(String(args.text)) };
       if (a === 'comment' && args.idea != null && args.idea !== '') body.on = Number(args.idea);
       const { seq } = await api.post('/api/huddle/post', body);
-      return a === 'idea' ? `Added idea #${seq} to ${id}.` : `Posted your comment (#${seq}) in ${id}.`;
+      const n = Number(seq) || '?';
+      return a === 'idea' ? `Added idea #${n} to ${id}.` : `Posted your comment (#${n}) in ${id}.`;
     }
     if (a === 'react') {
       need(args, 'idea', 'vote');
@@ -424,7 +434,7 @@ const HANDLERS = {
     const body = { action: args.action, paths };
     if (args.task_key) body.task_key = String(args.task_key);
     const res = await api.post('/api/claims', body);
-    if (args.action === 'release') return `Released ${res.released ?? 0} file(s).`;
+    if (args.action === 'release') return `Released ${Number(res.released) || 0} file(s).`;
     const lines = [];
     if (args.action === 'claim' && res.claimed?.length) lines.push(`Claimed: ${res.claimed.join(', ')}`);
     for (const c of res.conflicts || []) lines.push(conflictLine(c));

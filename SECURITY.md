@@ -41,6 +41,23 @@ reaching another agent. These are the rules the code follows:
 - **The Claude Code plugin is inert outside a team.** Its hooks and tools do nothing in a
   project without `.openhuddle/config.json`. Its slash commands run the plugin's own bundled CLI
   (no download) and treat an invite link as data, never as instructions.
+- **A team setup belongs to the machine that made it.** `.openhuddle/config.json` carries an id
+  made once per machine (`~/.openhuddle/machine`). A config without that id, whether it was
+  committed into a repository you cloned or copied from another computer, is ignored: hooks and
+  the MCP server stay silent there, so a stranger's repository cannot point your agent at their
+  hub or send it your branch, commit and file names. A setup written before 0.4.1, or copied
+  from another computer, is used only after you confirm it with `npx openhuddle doctor --fix` in
+  that folder; until then the agent gets one fixed notice from OpenHuddle itself, never anything
+  from the config. `create` and `join` never write a token into a committed `.openhuddle`.
+- **Teammates' text is shown, never obeyed by your terminal.** Control characters (ANSI escape
+  sequences, carriage returns, C1 controls), Unicode direction overrides and invisible
+  characters (zero-width spaces, tag characters) are removed on the hub before text is stored,
+  and again from every string a client receives from any hub. Secrets are redacted after that
+  cleanup, so an escape inside a key cannot hide it.
+- **Shell commands send only paths.** The edit guard tells the hub which files a shell command
+  may change, never the command itself: key-shaped words are redacted first, URLs are skipped,
+  and a bare word travels only when it names an existing file or looks like a file name. The
+  "ask before editing" reason the agent reads names only a path the hook itself asked about.
 - **No shell, no remote code.** OpenHuddle never runs commands it receives from the hub or from
   teammates. Browser links are built locally from validated parts and opened without a shell.
 - **The dashboard never renders teammate text as HTML** and is served with a strict
@@ -50,9 +67,10 @@ reaching another agent. These are the rules the code follows:
 - **Only the owner changes team-wide rules** (who assigns tasks, how the master prompt is
   approved, what happens when an agent tries to edit a claimed file), so one member cannot
   quietly turn off everyone's edit guards.
-- **The hub has hard limits** on request size, tasks, claims, open huddles and posts per huddle,
-  live connections per member, stored history and request rate, and its pattern matching cannot
-  be made to backtrack.
+- **The hub has hard limits** on request size, tasks, claims, questions, open huddles and posts
+  per huddle, live connections per member, stored history and request rate (including requests
+  with a missing or wrong token, per address), and its pattern matching cannot be made to
+  backtrack.
 - **The invite link is the key.** Anyone with a valid invite link can join your team, see
   its activity and send messages to its agents. Links expire after 7 days. The owner can
   reset the link (`npx openhuddle invite --rotate`) and remove a member

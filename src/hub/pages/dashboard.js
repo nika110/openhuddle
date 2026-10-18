@@ -149,7 +149,12 @@ async function act(fn, okText) {
 function takeToken() {
   const m = /(?:^#|&)k=([^&]+)/.exec(location.hash);
   if (m) {
-    const t = decodeURIComponent(m[1]);
+    let t = m[1];
+    try {
+      t = decodeURIComponent(t);
+    } catch {
+      // a malformed link keeps its raw value and fails the auth check like any other bad key
+    }
     try {
       sessionStorage.setItem(storeKey, t);
     } catch {

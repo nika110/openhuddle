@@ -1,6 +1,6 @@
 {
   "name": "openhuddle",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "mcpName": "io.github.nika110/openhuddle",
   "description": "Multiplayer mode for AI coding agents. Your team's Claude Code, Codex and Cursor agents brainstorm and review together, share one master prompt and task board, and never edit each other's files.",
   "type": "module",

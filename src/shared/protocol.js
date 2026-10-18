@@ -60,6 +60,7 @@ export const LIMITS = Object.freeze({
   tasks_per_plan: 100,
   tasks_per_team: 500,
   claims_per_member: 200,
+  asks_per_team: 1000,
   members: 50,
   streams_per_member: 3,
   streams_total: 5000,

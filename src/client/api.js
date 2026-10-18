@@ -1,4 +1,7 @@
-// Thin JSON client for the hub API. Every failure becomes an ApiError.
+// Thin JSON client for the hub API. Every failure becomes an ApiError. Every string in a
+// response is made plain text (no terminal escapes, no direction overrides) before anyone sees it.
+import { plainJson } from '../shared/plain.js';
+
 export class ApiError extends Error {
   constructor(status, code, message) {
     super(message);
@@ -48,7 +51,7 @@ export class Api {
       }
       let data = null;
       try {
-        data = text ? JSON.parse(text) : {};
+        data = text ? plainJson(JSON.parse(text)) : {};
       } catch {
         data = null;
       }
@@ -88,7 +91,7 @@ export class Api {
     if (!res.ok || !res.body) {
       let data = null;
       try {
-        data = await res.json();
+        data = plainJson(await res.json());
       } catch {}
       throw new ApiError(res.status, data?.code || `http_${res.status}`, data?.error || `Hub returned HTTP ${res.status}`);
     }
@@ -124,7 +127,7 @@ export function parseSse(frameText) {
   }
   if (!data.length) return null;
   try {
-    return JSON.parse(data.join('\n'));
+    return plainJson(JSON.parse(data.join('\n')));
   } catch {
     return null;
   }

@@ -2,16 +2,22 @@
 // .openhuddle/state.json (feed cursors, cached settings). Never committed.
 import { existsSync, readFileSync, writeFileSync, mkdirSync, rmSync, appendFileSync, renameSync, unlinkSync } from 'node:fs';
 import { join, dirname, resolve, isAbsolute } from 'node:path';
+import { homedir } from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 
 export const DIR_NAME = '.openhuddle';
 const STATE_FILE = 'state.json';
+const MACHINE_FILE = 'machine';
 const SHOWN_MAX = 200;
 const NUDGED_MAX = 200;
 
 function pause(ms) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+export function openhuddleHome(home = homedir()) {
+  return process.env.OPENHUDDLE_HOME ? resolve(process.env.OPENHUDDLE_HOME) : join(home, '.openhuddle');
 }
 
 // The personal dashboard link, built only from local config. Hub responses never feed it, and
@@ -32,31 +38,107 @@ export function dashboardUrl(config) {
   return `${base}/t/${team}#k=${token}`;
 }
 
-export function findProject(start) {
+// A random id made once per machine (~/.openhuddle/machine). Every config.json written here
+// carries it, and only a config that carries it is trusted: a .openhuddle/config.json that
+// arrived inside a cloned repository or an archive must not be able to point this machine's
+// hooks and agent at a stranger's hub.
+let machineCache = null;
+export function machineId({ create = false } = {}) {
+  const file = join(openhuddleHome(), MACHINE_FILE);
+  if (machineCache && machineCache.file === file) return machineCache.id;
+  let id = null;
+  try {
+    const text = readFileSync(file, 'utf8').trim();
+    if (/^[a-f0-9]{32}$/.test(text)) id = text;
+  } catch {}
+  if (!id && create) {
+    id = randomBytes(16).toString('hex');
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, `${id}\n`, { mode: 0o600 });
+  }
+  if (id) machineCache = { file, id };
+  return id;
+}
+
+// Whether git tracks anything at .openhuddle in `root` (a file, a submodule or a symlink, in
+// any letter case, since the file system may not care about case while git does).
+// 'tracked' | 'untracked' (a repo that tracks nothing there) | 'unknown' (no repo, no git).
+export function gitTracking(root) {
+  try {
+    execFileSync('git', ['ls-files', '--error-unmatch', '--', `:(icase)${DIR_NAME}`], { cwd: root, stdio: 'ignore', timeout: 5000, windowsHide: true });
+    return 'tracked';
+  } catch (err) {
+    return err?.status === 1 ? 'untracked' : 'unknown';
+  }
+}
+
+// Why a config found on disk is, or is not, one this machine made. Only 'machine' is trusted.
+//  - 'machine': stamped by OpenHuddle 0.4.1+ on this machine.
+//  - 'other_machine': stamped elsewhere, or with something that is not this machine's id.
+//  - 'committed': unstamped and git tracks it, so it came with the repository.
+//  - 'legacy': unstamped, inside a git repo that does not track it (probably written by an
+//    older OpenHuddle here; `doctor --fix` stamps it after the user says it is theirs).
+//  - 'unverified': unstamped, outside any git repo.
+export function configTrust(root, config) {
+  if ('machine' in config) {
+    const mine = machineId();
+    return typeof config.machine === 'string' && mine && config.machine === mine ? 'machine' : 'other_machine';
+  }
+  const tracking = gitTracking(root);
+  if (tracking === 'tracked') return 'committed';
+  return tracking === 'untracked' ? 'legacy' : 'unverified';
+}
+
+export function trusted(reason) {
+  return reason === 'machine';
+}
+
+function readConfigAt(dir) {
+  const file = join(dir, DIR_NAME, 'config.json');
+  if (!existsSync(file)) return undefined;
+  try {
+    const config = JSON.parse(readFileSync(file, 'utf8'));
+    if (config && typeof config === 'object' && !Array.isArray(config) && config.hub && config.token) return config;
+  } catch {}
+  return null;
+}
+
+// The nearest trusted .openhuddle/config.json at or above `start`; failing that, the nearest
+// one of any kind (so the CLI can say why it is ignored); null when there is none.
+export function findConfig(start) {
   let dir = resolve(process.env.OPENHUDDLE_DIR || start || process.cwd());
+  let untrusted = null;
   for (;;) {
-    const file = join(dir, DIR_NAME, 'config.json');
-    if (existsSync(file)) {
-      try {
-        const config = JSON.parse(readFileSync(file, 'utf8'));
-        if (config && config.hub && config.token) return { root: dir, dir: join(dir, DIR_NAME), config };
-      } catch {}
-      return null;
+    const config = readConfigAt(dir);
+    if (config) {
+      const found = { root: dir, dir: join(dir, DIR_NAME), config, trust: configTrust(dir, config) };
+      if (trusted(found.trust)) return found;
+      untrusted ??= found;
     }
     const parent = dirname(dir);
-    if (parent === dir) return null;
+    if (parent === dir) return untrusted;
     dir = parent;
   }
+}
+
+// The project this folder belongs to, or null. A config this machine did not make is ignored
+// as if it were not there, so hooks and the MCP server stay inert in a stranger's repository.
+export function findProject(start) {
+  const found = findConfig(start);
+  if (!found || !trusted(found.trust)) return null;
+  const { trust, ...project } = found;
+  return project;
 }
 
 export function saveConfig(root, config) {
   const dir = join(root, DIR_NAME);
   mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, 'config.json'), JSON.stringify(config, null, 2) + '\n', { mode: 0o600 });
+  const stamped = { ...config, machine: machineId({ create: true }) };
+  writeFileSync(join(dir, 'config.json'), JSON.stringify(stamped, null, 2) + '\n', { mode: 0o600 });
   // Keeps the token out of git even if the folder only becomes a repo later.
   writeFileSync(join(dir, '.gitignore'), '*\n');
   excludeFromGit(root, `${DIR_NAME}/`);
-  return { root, dir, config };
+  return { root, dir, config: stamped };
 }
 
 export function removeConfig(root) {
