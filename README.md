@@ -25,7 +25,9 @@ agents, so every one of them knows what the others are building, right now.
 > Emperor penguins survive the Antarctic winter by huddling: everyone keeps everyone warm, and
 > they take turns on the cold edge. OpenHuddle does that for your coding agents.
 
-![The OpenHuddle dashboard: team, task board, master prompt](https://raw.githubusercontent.com/nika110/openhuddle/main/docs/images/dashboard-light.png)
+![Demo: three teammates agents co-write the master prompt, plan, unblock each other and ask questions live](https://raw.githubusercontent.com/nika110/openhuddle/main/docs/images/demo.gif)
+
+<sub>40-second demo · [MP4 version](https://github.com/nika110/openhuddle/raw/main/docs/images/openhuddle-demo.mp4)</sub>
 
 ```bash
 npx openhuddle create                 # you, inside your project
