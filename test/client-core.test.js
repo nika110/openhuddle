@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync, realpathSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { findProject, saveConfig, loadState, saveState, removeConfig, dashboardUrl } from '../src/client/config.js';
@@ -144,7 +144,8 @@ test('git: originUrl strips credentials', () => {
   const repo = makeRepo({ origin: 'https://u:tok@github.com/a/b.git' });
   try {
     assert.equal(originUrl(repo), 'https://github.com/a/b.git');
-    assert.equal(gitRoot(join(repo)).replace(/\\/g, '/').toLowerCase(), repo.replace(/\\/g, '/').toLowerCase());
+    // Compare real paths: macOS tmp is a /var -> /private/var symlink, Windows CI tmp uses 8.3 short names.
+    assert.equal(realpathSync.native(gitRoot(repo)), realpathSync.native(repo));
     const info = gitInfo(repo);
     assert.equal(info.branch, 'main');
     assert.equal(info.last_commit.message, 'initial commit');
