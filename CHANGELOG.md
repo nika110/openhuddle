@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.2 — 2026-10-18
+
+- Docs: requirements, updating, uninstalling, troubleshooting and the public hub in the README;
+  release guide in CONTRIBUTING; supported versions and plugin notes in SECURITY; code of
+  conduct; issue and pull request templates. No code changes.
+
 ## 0.3.1 — 2026-10-18
 
 - Listed in the official MCP Registry as `io.github.nika110/openhuddle` (`mcpName` in
