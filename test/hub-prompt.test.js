@@ -105,6 +105,44 @@ test('prompt: edit after lock → amending with locked_sections kept', () => {
   assert.equal(prompt.locked_version, 2);
 });
 
+test('prompt: history keeps only the last 20 versions', () => {
+  const { hub } = makeHub();
+  const { auth } = crew(hub, ['ana']);
+  for (let i = 0; i < 30; i++) hub.promptEdit(auth(0), { section: 'Idea', text: `v${i}` });
+  const rows = hub.all('SELECT version FROM prompt_versions ORDER BY version');
+  assert.equal(rows.length, 20);
+  assert.equal(rows[0].version, 11);
+});
+
+test('prompt: total size is capped', () => {
+  const { hub } = makeHub();
+  const { auth } = crew(hub, ['ana']);
+  for (let i = 0; i < 5; i++) hub.promptEdit(auth(0), { section: `Part ${i}`, text: 'x'.repeat(19_000) });
+  assert.throws(
+    () => hub.promptEdit(auth(0), { section: 'Part 6', text: 'x'.repeat(19_000) }),
+    (err) => err instanceof HubError && err.status === 409 && err.code === 'prompt_too_long',
+  );
+});
+
+test('prompt: a vote is re-checked when a member leaves or the rule changes', () => {
+  const { hub } = makeHub();
+  const { auth } = crew(hub, ['ana', 'ben', 'cy']);
+  hub.promptEdit(auth(0), { section: 'Idea', text: 'pizza' });
+  hub.promptSubmit(auth(0));
+  hub.promptVote(auth(1), { approve: true });
+  assert.equal(hub.getPrompt(auth(0).team_id).state, 'voting');
+  hub.leave(auth(2));
+  assert.equal(hub.getPrompt(auth(0).team_id).state, 'locked', 'the two who remain both approved');
+
+  const second = makeHub();
+  const c = crew(second.hub, ['ana', 'ben', 'cy']);
+  second.hub.promptEdit(c.auth(0), { section: 'Idea', text: 'pizza' });
+  second.hub.promptSubmit(c.auth(0));
+  second.hub.promptVote(c.auth(1), { approve: true });
+  second.hub.settings(c.auth(0), { approvals: { master_prompt: 'majority' } });
+  assert.equal(second.hub.getPrompt(c.auth(0).team_id).state, 'locked');
+});
+
 test('prompt: vote outside voting → 409 not_voting', () => {
   const { hub } = makeHub();
   const { auth } = crew(hub, ['ana', 'ben']);

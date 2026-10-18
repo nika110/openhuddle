@@ -104,7 +104,8 @@ Watch it all live in the dashboard (`npx vibecrew dash`) or in your terminal
 
 ## Settings
 
-Every setting has a default. Change any of them by telling your agent.
+Every setting has a default. The crew owner changes them by telling their agent, so one member
+can't quietly switch off everyone's edit guards. Anyone can take the lead.
 
 | Setting | Default | Options |
 |---|---|---|
@@ -129,7 +130,7 @@ npx vibecrew leave                              leave and remove vibecrew from t
 npx vibecrew hub [--port 8787]                  run your own hub
 ```
 
-Requires Node 20 or newer (the hub needs Node 22.5 or newer).
+Requires Node 20 or newer (the hub needs Node 22.13 or newer).
 
 ## Run your own hub
 

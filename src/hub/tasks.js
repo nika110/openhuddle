@@ -30,12 +30,24 @@ export function listTasks(hub, teamId) {
   return rows.map((r) => toTask(r, status));
 }
 
-function findTask(hub, teamId, key) {
+// One task by key, with `ready` computed from just its own dependencies.
+export function findTask(hub, teamId, key) {
   const k = String(key ?? '').trim().toUpperCase();
   if (!k) throw badRequest('missing_key', 'Say which task (its key, like T3).');
-  const task = listTasks(hub, teamId).find((t) => t.key === k);
-  if (!task) throw notFound('unknown_task', `There is no task ${k}.`);
-  return task;
+  const row = hub.get('SELECT * FROM tasks WHERE team_id = ? AND key = ?', teamId, k.slice(0, 16));
+  if (!row) throw notFound('unknown_task', `There is no task ${k.slice(0, 16)}.`);
+  const deps = parse(row.depends_on, []);
+  const status = new Map();
+  for (const d of deps) {
+    const dep = hub.get('SELECT status FROM tasks WHERE team_id = ? AND key = ?', teamId, d);
+    if (dep) status.set(d, dep.status);
+  }
+  return toTask(row, status);
+}
+
+// Tasks matching a SQL condition on status/assignee, without loading the whole board.
+export function tasksWhere(hub, teamId, where, ...params) {
+  return hub.all(`SELECT * FROM tasks WHERE team_id = ? AND ${where} ORDER BY seq`, teamId, ...params).map((r) => toTask(r, new Map()));
 }
 
 function cleanArea(area) {
@@ -100,6 +112,9 @@ export function plan(hub, member, { tasks: inputs, replace = false }) {
   }
 
   const existing = new Map(listTasks(hub, teamId).map((t) => [t.key, t]));
+  if (existing.size + inputs.length > LIMITS.tasks_per_team) {
+    throw conflict('too_many_tasks', `A crew can have at most ${LIMITS.tasks_per_team} tasks on its board.`);
+  }
   const used = new Set(existing.keys());
   let n = team.next_task;
   const local = new Map();

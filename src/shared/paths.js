@@ -27,9 +27,12 @@ function collapse(parts) {
   return out;
 }
 
-// Cleans a path that must already be repo-relative. Rejects absolute paths and escapes.
+export const MAX_PATH = 512;
+
+// Cleans a path that must already be repo-relative. Rejects absolute paths, escapes and
+// absurdly long paths.
 export function cleanRelPath(p) {
-  if (typeof p !== 'string' || !p.trim()) return null;
+  if (typeof p !== 'string' || !p.trim() || p.length > MAX_PATH) return null;
   const s = slashes(p.trim());
   if (isAbsolute(s)) return null;
   const parts = collapse(s.split('/'));

@@ -12,13 +12,15 @@ import {
   PROMPT_SECTIONS,
 } from '../shared/protocol.js';
 import { HubError, badRequest, forbidden, notFound, conflict } from './errors.js';
-import { cleanText, cleanName, parse } from './text.js';
+import { cleanText, cleanName, safeName, parse } from './text.js';
 import * as prompt from './prompt.js';
 import * as work from './tasks.js';
 import * as claims from './claims.js';
 import * as asks from './asks.js';
 
-const EVENTS_KEPT = 20000;
+
+// Settings that change how everyone's agents behave; only the owner may change them.
+const TEAM_WIDE = ['assign_mode', 'approvals', 'claim_mode', 'claim_ttl_min'];
 
 function cleanRepoUrl(value) {
   if (!value) return null;
@@ -119,8 +121,8 @@ export class Hub {
       at,
     );
     const id = Number(res.lastInsertRowid);
-    if (id % 1000 === 0) {
-      this.run('DELETE FROM events WHERE team_id = ? AND id <= ?', teamId, id - EVENTS_KEPT);
+    if (id % 500 === 0) {
+      this.run('DELETE FROM events WHERE team_id = ? AND id <= ?', teamId, id - LIMITS.events_per_team);
     }
     const ev = { id, team_id: teamId, kind, member_id: memberId ?? null, data, created_at: at };
     this.pending.push(ev);
@@ -213,7 +215,7 @@ export class Hub {
   }
 
   uniqueName(teamId, wanted) {
-    const base = cleanName(wanted) || 'crewmate';
+    const base = safeName(wanted) || 'crewmate';
     const taken = new Set(this.activeMembers(teamId).map((m) => m.name.toLowerCase()));
     if (!taken.has(base.toLowerCase())) return base;
     for (let i = 2; ; i++) {
@@ -229,7 +231,7 @@ export class Hub {
       team_id: teamId,
       name: this.uniqueName(teamId, name),
       role,
-      tool: cleanName(tool, 30) || null,
+      tool: String(tool ?? '').toLowerCase().replace(/[^a-z0-9+._-]/g, '').slice(0, 30) || null,
       token_hash: sha256(token),
       joined_at: this.now(),
     };
@@ -256,13 +258,13 @@ export class Hub {
   }
 
   createTeam({ team_name, member_name, tool, repo_url } = {}) {
-    const memberName = cleanName(member_name);
-    if (!memberName) throw badRequest('missing_name', 'member_name is required.');
+    if (!String(member_name ?? '').trim()) throw badRequest('missing_name', 'member_name is required.');
+    const memberName = safeName(member_name) || 'crewmate';
     return this.tx(() => {
       const at = this.now();
       const team = {
         id: newId('t'),
-        name: cleanName(team_name, 60) || 'My crew',
+        name: safeName(team_name, 60) || 'My crew',
         repo_url: cleanRepoUrl(repo_url),
         invite_secret: newSecret(),
         invite_expires_at: at + INVITE_TTL_MS,
@@ -305,8 +307,8 @@ export class Hub {
     if (!row) throw invalid;
     const team = this.team(teamId);
     if (!sameSecret(secret, team.invite_secret) || this.now() > team.invite_expires_at) throw invalid;
-    const memberName = cleanName(member_name);
-    if (!memberName) throw badRequest('missing_name', 'member_name is required.');
+    if (!String(member_name ?? '').trim()) throw badRequest('missing_name', 'member_name is required.');
+    const memberName = safeName(member_name) || 'crewmate';
     return this.tx(() => {
       if (this.activeMembers(teamId).length >= LIMITS.members) {
         throw conflict('team_full', `A team can have at most ${LIMITS.members} members.`);
@@ -429,6 +431,10 @@ export class Hub {
       const applied = {};
       for (const [key, value] of Object.entries(changes || {})) {
         if (value === undefined || value === null) continue;
+        if (TEAM_WIDE.includes(key) && member.role !== 'owner') {
+          const owner = this.activeMembers(member.team_id).find((m) => m.role === 'owner');
+          throw forbidden('owner_only', `Only the crew owner${owner ? ` (${owner.name})` : ''} can change how the crew works.`);
+        }
         if (key === 'assign_mode') {
           if (!ASSIGN_MODES.includes(value)) throw badRequest('bad_setting', `assign_mode must be one of ${ASSIGN_MODES.join(', ')}.`);
           settings.assign_mode = applied.assign_mode = value;
@@ -459,6 +465,7 @@ export class Hub {
       }
       this.saveSettings(member.team_id, settings);
       if (Object.keys(applied).length) this.emit(member.team_id, member.id, 'settings_changed', { changes: applied });
+      if (applied.approvals) prompt.recheckLock(this, member.team_id);
       return { settings };
     });
   }
@@ -490,6 +497,7 @@ export class Hub {
       if (target.id === member.id) throw badRequest('remove_self', 'Use leave to remove yourself.');
       this.dropMember(target);
       this.emit(member.team_id, member.id, 'member_removed', { member_id: target.id, name: target.name });
+      prompt.recheckLock(this, member.team_id);
       return { ok: true };
     });
   }
@@ -502,8 +510,16 @@ export class Hub {
       }
       this.dropMember(member);
       this.emit(member.team_id, member.id, 'left', { name: member.name });
+      prompt.recheckLock(this, member.team_id);
       return { ok: true };
     });
+  }
+
+  // Housekeeping the server runs every few minutes: expired claims and week-old questions go.
+  sweep() {
+    const now = this.now();
+    this.run('DELETE FROM claims WHERE expires_at < ?', now - 3600_000);
+    this.run('DELETE FROM asks WHERE created_at < ?', now - 7 * 24 * 3600_000);
   }
 
   // ---- delegated domain ---------------------------------------------------------

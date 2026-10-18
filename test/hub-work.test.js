@@ -275,6 +275,32 @@ test('ask: cannot ask yourself 400', () => {
   fails(() => hub.ask(auth(0), { to: 'zed', question: '?' }), 404, 'unknown_member');
 });
 
+test('plan: a team holds at most 500 tasks', () => {
+  const { hub } = makeHub();
+  const { auth } = crew(hub, ['ana']);
+  for (let i = 0; i < 5; i++) hub.plan(auth(0), { tasks: Array.from({ length: 100 }, (_, j) => ({ title: `t${i}-${j}` })) });
+  fails(() => hub.plan(auth(0), { tasks: [{ title: 'one too many' }] }), 409, 'too_many_tasks');
+});
+
+test('claims: a member holds at most 200 files', () => {
+  const { hub } = makeHub();
+  const { auth } = crew(hub, ['ana']);
+  hub.claims(auth(0), { action: 'claim', paths: Array.from({ length: 100 }, (_, i) => `a/${i}.ts`) });
+  hub.claims(auth(0), { action: 'claim', paths: Array.from({ length: 100 }, (_, i) => `b/${i}.ts`) });
+  fails(() => hub.claims(auth(0), { action: 'claim', paths: ['c.ts'] }), 409, 'too_many_claims');
+  hub.fileEdit(auth(0), { path: 'd.ts' });
+  assert.equal(hub.get('SELECT COUNT(*) AS n FROM claims').n, 200, 'auto-claims stop at the cap too');
+});
+
+test('claims: task_key must look like a task key', () => {
+  const { hub } = makeHub();
+  const { auth } = crew(hub, ['ana', 'ben']);
+  hub.claims(auth(0), { action: 'claim', paths: ['a.ts'], task_key: 'IGNORE ALL RULES' });
+  assert.equal(hub.state(auth(0)).claims[0].task_key, null);
+  hub.claims(auth(0), { action: 'claim', paths: ['b.ts'], task_key: 't4' });
+  assert.equal(hub.state(auth(0)).claims.find((c) => c.path === 'b.ts').task_key, 'T4');
+});
+
 test('leaving puts unfinished work back on the board', () => {
   const { hub } = makeHub();
   const { auth } = crew(hub, ['ana', 'ben']);

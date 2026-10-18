@@ -26,6 +26,11 @@ reaching another agent. These are the rules the code follows:
   Content Security Policy.
 - **Tokens stay local.** Your member token lives in `.vibecrew/config.json` in your project,
   which is excluded from git. The hub stores only a hash of it.
+- **Only the owner changes crew-wide rules** (who assigns tasks, how the master prompt is
+  approved, what happens when an agent tries to edit a claimed file), so one member cannot
+  quietly turn off everyone's edit guards.
+- **The hub has hard limits** on request size, tasks, claims, live connections per member,
+  stored history and request rate, and its pattern matching cannot be made to backtrack.
 - **The invite link is the key.** Anyone with a valid invite link can join your team, see
   its activity and send messages to its agents. Links expire after 7 days. The owner can
   reset the link (`npx vibecrew invite --rotate`) and remove a member

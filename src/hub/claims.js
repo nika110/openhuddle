@@ -2,10 +2,22 @@ import { cleanRelPath } from '../shared/paths.js';
 import { matchAny } from '../shared/glob.js';
 import { badRequest } from './errors.js';
 import { cleanText, cleanName, parse } from './text.js';
-import { listTasks } from './tasks.js';
+import { tasksWhere } from './tasks.js';
+import { LIMITS } from '../shared/protocol.js';
+import { conflict as conflictError } from './errors.js';
 
 const EDIT_EVENT_EVERY_MS = 10 * 60_000;
 const MAX_PATHS = 100;
+const TASK_KEY = /^[A-Z][A-Z0-9_-]{0,15}$/;
+
+function heldBy(hub, member) {
+  return hub.get(
+    'SELECT COUNT(*) AS n FROM claims WHERE team_id = ? AND member_id = ? AND expires_at > ?',
+    member.team_id,
+    member.id,
+    hub.now(),
+  ).n;
+}
 
 function ttlMs(hub, teamId) {
   return hub.team(teamId).settings.claim_ttl_min * 60_000;
@@ -61,7 +73,7 @@ function upsert(hub, member, path, taskKey, ttl) {
 // The task an edit most likely belongs to: an in-progress task of mine whose area covers the file,
 // or my only in-progress task.
 function currentTaskFor(hub, member, path) {
-  const mine = listTasks(hub, member.team_id).filter((t) => t.assignee_id === member.id && t.status === 'in_progress');
+  const mine = tasksWhere(hub, member.team_id, "assignee_id = ? AND status = 'in_progress'", member.id);
   const byArea = mine.find((t) => matchAny(t.area, path));
   if (byArea) return byArea.key;
   return mine.length === 1 ? mine[0].key : null;
@@ -84,24 +96,30 @@ export function claims(hub, member, { action = 'claim', paths, task_key }) {
   const list = cleanPaths(paths);
   if (action === 'claim') {
     const ttl = ttlMs(hub, teamId);
-    const key = task_key ? String(task_key).trim().toUpperCase().slice(0, 16) : null;
+    const wanted = task_key ? String(task_key).trim().toUpperCase() : '';
+    const key = TASK_KEY.test(wanted) ? wanted : null;
+    let held = heldBy(hub, member);
     const claimed = [];
     const conflicts = [];
     for (const p of list) {
       const c = conflictFor(hub, member, p);
-      if (c) conflicts.push(c);
-      else {
-        upsert(hub, member, p, key, ttl);
-        claimed.push(p);
+      if (c) {
+        conflicts.push(c);
+        continue;
       }
+      const mine = hub.get('SELECT 1 AS x FROM claims WHERE team_id = ? AND path = ? AND member_id = ? AND expires_at > ?', teamId, p, member.id, hub.now());
+      if (!mine && held >= LIMITS.claims_per_member) {
+        throw conflictError('too_many_claims', `You can hold at most ${LIMITS.claims_per_member} files at once. Release some first.`);
+      }
+      if (!mine) held++;
+      upsert(hub, member, p, key, ttl);
+      claimed.push(p);
     }
     return { claimed, conflicts };
   }
   if (action === 'check') {
     const conflicts = list.map((p) => conflictFor(hub, member, p)).filter(Boolean);
-    const others = listTasks(hub, teamId).filter(
-      (t) => t.assignee_id && t.assignee_id !== member.id && (t.status === 'assigned' || t.status === 'in_progress'),
-    );
+    const others = tasksWhere(hub, teamId, "assignee_id IS NOT NULL AND assignee_id != ? AND status IN ('assigned', 'in_progress')", member.id);
     const overlaps = [];
     for (const p of list) {
       for (const t of others) if (matchAny(t.area, p)) overlaps.push({ path: p, task_key: t.key, member_id: t.assignee_id });
@@ -117,7 +135,8 @@ export function fileEdit(hub, member, { path, since }) {
   let taskKey = null;
   if (!conflict) {
     taskKey = currentTaskFor(hub, member, p);
-    upsert(hub, member, p, taskKey, ttlMs(hub, member.team_id));
+    const mine = hub.get('SELECT 1 AS x FROM claims WHERE team_id = ? AND path = ? AND member_id = ? AND expires_at > ?', member.team_id, p, member.id, hub.now());
+    if (mine || heldBy(hub, member) < LIMITS.claims_per_member) upsert(hub, member, p, taskKey, ttlMs(hub, member.team_id));
   }
   const seenKey = `${member.team_id}|${member.id}|${p}`;
   const last = hub.editSeen.get(seenKey);

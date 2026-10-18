@@ -85,7 +85,7 @@ Teams: one machine only; agentmemory/projectmem: single-user memory). Nobody cov
 ## Decisions made by Claude (owner delegated all decisions)
 
 - Name **vibecrew** (npm + GitHub free); tagline "multiplayer mode for AI coding agents".
-- Plain JavaScript ESM, zero runtime dependencies, Node ≥ 20 for the client, Node ≥ 22.5
+- Plain JavaScript ESM, zero runtime dependencies, Node ≥ 20 for the client, Node ≥ 22.13
   for the hub (`node:sqlite`). Tests with `node --test`.
 - Hand-rolled stdio MCP (JSON-RPC 2.0, newline-delimited) instead of the SDK: keeps
   `npx` instant.

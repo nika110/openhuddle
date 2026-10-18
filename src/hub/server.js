@@ -109,11 +109,17 @@ export async function startHub({
   const db = openDb(dbPath);
   const hub = new Hub(db, { publicUrl: publicUrl || 'http://localhost', now });
   const streams = new Set();
+  const memberStreams = new Map();
   const openLimiter = new Limiter(20, 3600_000);
   const memberLimiter = new Limiter(600, 60_000);
   const sweeper = setInterval(() => {
     openLimiter.sweep();
     memberLimiter.sweep();
+    try {
+      hub.sweep();
+    } catch (err) {
+      log('vibecrew hub: sweep failed:', err);
+    }
   }, 600_000);
   sweeper.unref();
 
@@ -158,6 +164,11 @@ export async function startHub({
   }
 
   function stream(req, res, member, since) {
+    if (streams.size >= LIMITS.streams_total) throw new HubError(503, 'busy', 'The hub is full right now. Try again in a minute.');
+    // A member keeps at most a few live feeds; a new one (a reloaded dashboard) replaces the oldest.
+    let mine = memberStreams.get(member.id);
+    if (!mine) memberStreams.set(member.id, (mine = []));
+    while (mine.length >= LIMITS.streams_per_member) mine[0]();
     res.writeHead(200, {
       'content-type': 'text/event-stream; charset=utf-8',
       'cache-control': 'no-cache, no-transform',
@@ -168,31 +179,41 @@ export async function startHub({
     // A cursor from the future (another hub, a reset db) must not mute the stream.
     let cursor = Math.min(since, hub.lastEventId(member.team_id));
     let closed = false;
-    const write = (ev) => {
-      cursor = ev.id;
-      res.write(`id: ${ev.id}\nevent: ${ev.kind}\ndata: ${JSON.stringify(ev)}\n\n`);
-    };
-    for (const ev of hub.events(member, { since: cursor, limit: 500 }).events) write(ev);
     const finish = () => {
       if (closed) return;
       closed = true;
       clearInterval(ping);
-      unsubscribe();
+      unsubscribe?.();
       hub.streamClosed(member.id);
       streams.delete(res);
+      const i = mine.indexOf(finish);
+      if (i !== -1) mine.splice(i, 1);
+      if (!mine.length) memberStreams.delete(member.id);
       res.end();
     };
-    const unsubscribe = hub.subscribe(member.team_id, (ev) => {
-      if (ev.id <= cursor) return;
-      write(ev);
-      if (ev.kind === 'member_removed' && ev.data?.member_id === member.id) finish();
-    });
-    const ping = setInterval(() => res.write(': ping\n\n'), PING_MS);
-    ping.unref();
+    mine.push(finish);
+    // A reader that stops reading must not make the hub buffer without bound.
+    const write = (ev) => {
+      if (closed) return;
+      cursor = ev.id;
+      res.write(`id: ${ev.id}\nevent: ${ev.kind}\ndata: ${JSON.stringify(ev)}\n\n`);
+      if (res.writableLength > LIMITS.stream_buffer) finish();
+    };
+    let unsubscribe;
+    let ping;
     hub.streamOpened(member.id);
     streams.add(res);
     req.on('close', finish);
     res.on('error', finish);
+    for (const ev of hub.events(member, { since: cursor, limit: 500 }).events) write(ev);
+    if (closed) return;
+    unsubscribe = hub.subscribe(member.team_id, (ev) => {
+      if (ev.id <= cursor) return;
+      write(ev);
+      if (ev.kind === 'member_removed' && ev.data?.member_id === member.id) finish();
+    });
+    ping = setInterval(() => res.write(': ping\n\n'), PING_MS);
+    ping.unref();
   }
 
   async function api(req, res, url) {

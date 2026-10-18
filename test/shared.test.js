@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { scrub } from '../src/shared/scrub.js';
-import { globToRegExp, matchAny } from '../src/shared/glob.js';
+import { matchGlob, matchAny } from '../src/shared/glob.js';
 import { toRepoPath, cleanRelPath } from '../src/shared/paths.js';
 import { newId, newToken, newSecret, sha256 } from '../src/shared/ids.js';
 
@@ -35,11 +35,29 @@ test('scrub: leaves normal prose alone', () => {
 });
 
 test('glob: ** crosses dirs, * does not', () => {
-  assert.ok(globToRegExp('src/**/*.ts').test('src/a/b.ts'));
-  assert.ok(globToRegExp('src/**/*.ts').test('src/b.ts'));
-  assert.ok(!globToRegExp('src/*.ts').test('src/a/b.ts'));
-  assert.ok(globToRegExp('src/*.ts').test('src/b.ts'));
-  assert.ok(globToRegExp('src/?.ts').test('src/b.ts'));
+  assert.ok(matchGlob('src/**/*.ts', 'src/a/b.ts'));
+  assert.ok(matchGlob('src/**/*.ts', 'src/b.ts'));
+  assert.ok(!matchGlob('src/*.ts', 'src/a/b.ts'));
+  assert.ok(matchGlob('src/*.ts', 'src/b.ts'));
+  assert.ok(matchGlob('src/?.ts', 'src/b.ts'));
+});
+
+test('glob: pathological patterns stay fast (no regex backtracking)', () => {
+  const started = Date.now();
+  assert.equal(matchGlob('*a*a*a*a*a*a*a*a*a*a*a*a*b', 'a'.repeat(400)), false);
+  assert.equal(matchGlob('**/**/**/**/**/**/x', 'a/'.repeat(200) + 'y'), false);
+  assert.ok(Date.now() - started < 200, `took ${Date.now() - started}ms`);
+  assert.ok(matchGlob('**', 'any/thing.ts'));
+  assert.ok(matchGlob('src/**', 'src'));
+  assert.ok(matchGlob('src/*/', 'src/a/b/c.ts'));
+  assert.ok(matchGlob('*.test.js', 'a.test.js'));
+  assert.ok(!matchGlob('*.test.js', 'dir/a.test.js'));
+});
+
+test('paths: very long paths are rejected', () => {
+  assert.equal(cleanRelPath('a/'.repeat(300) + 'b'), null);
+  assert.equal(cleanRelPath('x'.repeat(513)), null);
+  assert.equal(cleanRelPath('x'.repeat(512)), 'x'.repeat(512));
 });
 
 test('glob: bare dir matches children', () => {

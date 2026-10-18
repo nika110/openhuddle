@@ -104,6 +104,25 @@ test('http: SSE delivers posted update', async () => {
   assert.equal(data.team_id, undefined, 'internal fields stay internal');
 });
 
+test('http: a member holds at most 3 live streams (oldest is closed)', async () => {
+  const { a } = await crew();
+  const open = async () => {
+    const controller = new AbortController();
+    const res = await fetch(`${hubUrl}/api/stream`, { headers: { authorization: `Bearer ${a.token}` }, signal: controller.signal });
+    return { reader: res.body.getReader(), controller };
+  };
+  const first = await open();
+  const others = [await open(), await open(), await open()];
+  const deadline = Date.now() + 3000;
+  let closed = false;
+  while (!closed && Date.now() < deadline) {
+    const { done } = await Promise.race([first.reader.read(), new Promise((r) => setTimeout(() => r({ done: false }), 200))]);
+    closed = done;
+  }
+  for (const s of [first, ...others]) s.controller.abort();
+  assert.ok(closed, 'the oldest stream was closed when a fourth one opened');
+});
+
 test('http: ask returns live answer when target replies within wait', async () => {
   const { a, b } = await crew();
   const asking = call('POST', '/api/ask', { token: a.token, body: { to: 'ben', question: 'jwt?', wait_s: 5 } });

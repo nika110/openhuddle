@@ -62,6 +62,15 @@ function maybeLock(hub, teamId, p) {
   return true;
 }
 
+// A running vote can be decided by someone leaving or by the owner changing the rule.
+export function recheckLock(hub, teamId) {
+  const p = hub.team(teamId).prompt;
+  if (p.state !== 'voting' || !maybeLock(hub, teamId, p)) return false;
+  save(hub, teamId, p);
+  hub.emit(teamId, null, 'prompt_locked', { version: p.version });
+  return true;
+}
+
 export function promptEdit(hub, member, { section, text, mode = 'replace' }) {
   const title = cleanName(section, 80);
   const team = hub.team(member.team_id);
@@ -78,7 +87,12 @@ export function promptEdit(hub, member, { section, text, mode = 'replace' }) {
     s = { title, body: '', updated_by: null, updated_at: null };
     p.sections.push(s);
   }
-  s.body = mode === 'append' && s.body ? `${s.body}\n${body}`.slice(0, LIMITS.section) : body;
+  const nextBody = mode === 'append' && s.body ? `${s.body}\n${body}`.slice(0, LIMITS.section) : body;
+  const total = p.sections.reduce((n, x) => n + (x === s ? nextBody.length : x.body.length), 0);
+  if (total > LIMITS.prompt_total) {
+    throw conflict('prompt_too_long', `The master prompt can hold at most ${LIMITS.prompt_total} characters. Shorten another section first.`);
+  }
+  s.body = nextBody;
   s.updated_by = member.id;
   s.updated_at = hub.now();
   p.version += 1;
@@ -96,6 +110,11 @@ export function promptEdit(hub, member, { section, text, mode = 'replace' }) {
     JSON.stringify(p.sections),
     member.id,
     hub.now(),
+  );
+  hub.run(
+    'DELETE FROM prompt_versions WHERE team_id = ? AND version <= ?',
+    member.team_id,
+    p.version - LIMITS.prompt_versions_kept,
   );
   save(hub, member.team_id, p);
   hub.emit(member.team_id, member.id, 'prompt_edit', { section: s.title, mode, version: p.version });

@@ -46,9 +46,17 @@ export const URGENT_KINDS = [
 export const LIMITS = Object.freeze({
   text: 8000,
   section: 20000,
+  prompt_total: 100_000,
+  prompt_versions_kept: 20,
   body: 262144,
   tasks_per_plan: 100,
+  tasks_per_team: 500,
+  claims_per_member: 200,
   members: 50,
+  streams_per_member: 3,
+  streams_total: 5000,
+  stream_buffer: 1_000_000,
+  events_per_team: 5000,
 });
 
 export const ONLINE_MS = 150_000;

@@ -18,6 +18,18 @@ export function cleanName(value, max = 40) {
     .slice(0, max);
 }
 
+// Names of people and crews reach other people's agents, so they get a tight alphabet:
+// letters (any script), digits, space and . _ ' - only.
+export function safeName(value, max = 40) {
+  return String(value ?? '')
+    .normalize('NFC')
+    .replace(/[^\p{L}\p{M}\p{N} ._'-]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, max)
+    .trim();
+}
+
 export function parse(json, fallback) {
   if (json == null) return fallback;
   try {
