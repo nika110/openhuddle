@@ -10,10 +10,12 @@ import { gitRoot, hooksDir, isTracked } from './git.js';
 
 const PKG_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const EDIT_MATCHER = 'Edit|Write|MultiEdit|NotebookEdit';
+// Shell tools can write files too; the pre-edit hook only calls the hub when a command looks like a write.
+const GUARD_MATCHER = `${EDIT_MATCHER}|Bash|PowerShell`;
 const HOOKS = [
   ['SessionStart', null, 'session-start'],
   ['UserPromptSubmit', null, 'prompt'],
-  ['PreToolUse', EDIT_MATCHER, 'pre-edit'],
+  ['PreToolUse', GUARD_MATCHER, 'pre-edit'],
   ['PostToolUse', EDIT_MATCHER, 'post-edit'],
   ['Stop', null, 'stop'],
 ];

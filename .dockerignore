@@ -1,0 +1,9 @@
+.git
+node_modules
+docs
+test
+.vibecrew
+*.db
+*.db-wal
+*.db-shm
+*.tgz

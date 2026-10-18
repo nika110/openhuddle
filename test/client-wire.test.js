@@ -42,7 +42,7 @@ test('wire: claude settings merge keeps foreign hooks', () => {
     assert.ok(ours.includes(`${CMD} hook ${name}`), name);
   }
   const pre = merged.hooks.PreToolUse.find((g) => g.hooks.some((h) => h.command.endsWith('hook pre-edit')));
-  assert.equal(pre.matcher, 'Edit|Write|MultiEdit|NotebookEdit');
+  assert.equal(pre.matcher, 'Edit|Write|MultiEdit|NotebookEdit|Bash|PowerShell');
   // input untouched
   assert.equal(foreign.hooks.PreToolUse.length, 1);
 });

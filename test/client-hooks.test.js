@@ -74,6 +74,23 @@ test('hooks: pre-edit on free file → empty', async () => {
   assert.equal(await hook('pre-edit', { cwd: repoA, tool_name: 'Write', tool_input: { file_path: join(tempDir(), 'outside.ts') } }, A), '');
 });
 
+test("hooks: shell write to teammate's file → ask", async () => {
+  await apiB.post('/api/claims', { action: 'claim', paths: ['src/menu.ts'] });
+  const bash = await hook('pre-edit', { cwd: repoA, tool_name: 'Bash', tool_input: { command: "printf 'x' >> src/menu.ts && git status" } }, A);
+  assert.equal(JSON.parse(bash).hookSpecificOutput.permissionDecision, 'ask');
+  assert.ok(JSON.parse(bash).hookSpecificOutput.permissionDecisionReason.includes('bob'));
+  const ps = await hook('pre-edit', { cwd: repoA, tool_name: 'PowerShell', tool_input: { command: "Add-Content -Path src\\menu.ts -Value 'x'" } }, A);
+  assert.equal(JSON.parse(ps).hookSpecificOutput.permissionDecision, 'ask');
+  const sub = await hook('pre-edit', { cwd: join(repoA, 'src'), tool_name: 'Bash', tool_input: { command: 'sed -i s/a/b/ menu.ts' } }, A);
+  assert.equal(JSON.parse(sub).hookSpecificOutput.permissionDecision, 'ask', 'relative to the shell cwd');
+});
+
+test('hooks: read-only or unrelated shell commands → empty', async () => {
+  for (const command of ['cat src/menu.ts', 'git log --oneline 2>&1 | head', 'npm test > /dev/null', 'echo hi > src/free.ts', 'ls src']) {
+    assert.equal(await hook('pre-edit', { cwd: repoA, tool_name: 'Bash', tool_input: { command } }, A), '', command);
+  }
+});
+
 test('hooks: pre-edit with block mode → deny', async () => {
   await apiA.post('/api/settings', { claim_mode: 'block' });
   await hook('prompt', { cwd: repoA }, A); // refreshes cached settings

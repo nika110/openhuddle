@@ -5,6 +5,7 @@ import { Api } from './api.js';
 import { findProject, loadState, saveState } from './config.js';
 import { gitInfo, lastCommit } from './git.js';
 import { frame, briefing, newsBlock, byId, clip, clock } from './format.js';
+import { isAbsolute, join } from 'node:path';
 import { toRepoPath } from '../shared/paths.js';
 import { HOOK_TIMEOUT_MS, URGENT_KINDS } from '../shared/protocol.js';
 
@@ -42,6 +43,34 @@ function editedPath(input, root) {
   const ti = input.tool_input || {};
   const p = ti.file_path ?? ti.notebook_path ?? ti.path;
   return typeof p === 'string' ? toRepoPath(p, root) : null;
+}
+
+const SHELL_TOOLS = ['Bash', 'PowerShell'];
+// Shell commands that can change files: redirects (not 2>&1), common file tools, in-place editors,
+// and PowerShell's file cmdlets. Anything else is treated as read-only and costs no hub call.
+const SHELL_WRITE =
+  /(?:^|[^<>&0-9])>>?(?!&)|\b(?:tee|mv|cp|rm|truncate|touch|install|ln|unlink)\b|\bsed\b[^|;&]*\s(?:-[a-zA-Z]*i\b|--in-place)|\bperl\b[^|;&]*\s-[a-zA-Z]*i|\bdd\b[^|;&]*\bof=|\b(?:Set-Content|Add-Content|Out-File|Remove-Item|Move-Item|Copy-Item|New-Item|Rename-Item|Clear-Content)\b/i;
+
+// Repo-relative paths a shell command mentions, resolved against the shell's cwd.
+function shellPaths(command, cwd, root) {
+  const out = new Set();
+  for (const token of String(command).split(/[\s'"`;|&()<>,]+/)) {
+    if (!token || token.startsWith('-') || !/[./\\]/.test(token)) continue;
+    const rel = toRepoPath(isAbsolute(token) || /^[a-zA-Z]:/.test(token) ? token : join(cwd, token), root);
+    if (rel) out.add(rel);
+    if (out.size >= 20) break;
+  }
+  return [...out];
+}
+
+function editTargets(input, root) {
+  if (SHELL_TOOLS.includes(input.tool_name)) {
+    const command = input.tool_input?.command;
+    if (typeof command !== 'string' || !SHELL_WRITE.test(command)) return [];
+    return shellPaths(command, input.cwd || root, root);
+  }
+  const rel = editedPath(input, root);
+  return rel ? [rel] : [];
 }
 
 function questionsBlock(state) {
@@ -90,11 +119,11 @@ async function inner(name, input, ctx, ms) {
     }
 
     case 'pre-edit': {
-      const rel = editedPath(input, root);
-      if (!rel) return '';
+      const paths = editTargets(input, root);
+      if (!paths.length) return '';
       const mode = loadState(dir).settings?.claim_mode ?? 'ask';
       if (mode === 'warn') return '';
-      const res = await api.post('/api/claims', { action: 'check', paths: [rel] });
+      const res = await api.post('/api/claims', { action: 'check', paths });
       const c = (res.conflicts || [])[0];
       if (!c) return '';
       const reason =
