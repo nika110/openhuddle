@@ -1,6 +1,6 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -223,6 +223,10 @@ test('cli: invite and doctor', async () => {
   assert.ok(doc.stdout.includes('hub'), doc.stdout);
   assert.ok(doc.stdout.includes('membership is valid'), doc.stdout);
   assert.equal(code, 0, doc.stdout);
+  // Projects set up by older versions get the token-guarding .gitignore on --fix.
+  rmSync(join(repoA, '.vibecrew', '.gitignore'), { force: true });
+  assert.equal(await main(['doctor', '--fix'], capture(repoA)), 0);
+  assert.equal(readFileSync(join(repoA, '.vibecrew', '.gitignore'), 'utf8').trim(), '*');
 });
 
 test('cli: hook exits 0 on garbage stdin', async () => {

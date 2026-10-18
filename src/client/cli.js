@@ -403,6 +403,8 @@ const COMMANDS = {
       }
     }
     if (flags.fix) {
+      // Rewriting the config also restores .vibecrew/.gitignore for projects set up by older versions.
+      saveConfig(project.root, project.config);
       const lines = wireAll(project.root, { home: ctx.home, claudeCli: claudeCli(ctx) });
       ctx.out('Re-wired:');
       for (const l of lines) ctx.out(`  - ${l}`);
