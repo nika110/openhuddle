@@ -61,8 +61,13 @@ test('plugin: slash commands exist with descriptions and use the published CLI',
     const text = readFileSync(file, 'utf8');
     assert.match(text, /^---\n[\s\S]*?description: .+\n[\s\S]*?---\n/, `${name} frontmatter`);
   }
-  assert.match(readFileSync(new URL('commands/create.md', root), 'utf8'), /npx -y openhuddle@latest create \$ARGUMENTS/);
-  assert.match(readFileSync(new URL('commands/join.md', root), 'utf8'), /npx -y openhuddle@latest join \$ARGUMENTS/);
+  // The commands run the plugin's own copy: no download, no pre-approved shell access.
+  for (const name of ['create', 'join']) {
+    const text = readFileSync(new URL(`commands/${name}.md`, root), 'utf8');
+    assert.ok(text.includes(`node "${BIN}" ${name} $ARGUMENTS`), `${name} runs the bundled CLI`);
+    assert.ok(!/allowed-tools/.test(text), `${name} pre-approves nothing`);
+    assert.ok(!/npx/.test(text.split('```')[1]), `${name} downloads nothing`);
+  }
 });
 
 test('mcp registry: server.json matches package.json', () => {

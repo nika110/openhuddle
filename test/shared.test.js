@@ -5,17 +5,21 @@ import { matchGlob, matchAny } from '../src/shared/glob.js';
 import { toRepoPath, cleanRelPath } from '../src/shared/paths.js';
 import { newId, newToken, newSecret, sha256 } from '../src/shared/ids.js';
 
+// Fake credentials are assembled at run time, so no file in the repo contains a key-shaped
+// string (secret scanners would rightly flag one).
+const k = (...parts) => parts.join('');
+
 test('scrub: redacts sk-, ghp_, github_pat_, AKIA, xox, AIza, JWT, PEM private key, vc_ token', () => {
   const samples = [
-    'sk-ant-api03-abcdefghijklmnopqrstuvwxyz0123',
-    'ghp_abcdefghijklmnopqrstuvwxyz0123456789',
-    'github_pat_11ABCDEFG0123456789_abcdefghijklmnopqrstuvwxyz0123',
-    'AKIAABCDEFGHIJKLMNOP',
-    'xoxb-1234567890-abcdefghij',
-    'AIzaSyA1234567890abcdefghijklmnopqrstuv',
-    'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcdefghijklmnop',
-    '-----BEGIN RSA PRIVATE KEY-----\nMIIEow\n-----END RSA PRIVATE KEY-----',
-    'vc_' + 'a'.repeat(43),
+    k('sk', '-ant-api03-', 'x'.repeat(30)),
+    k('gh', 'p_', 'x'.repeat(36)),
+    k('github', '_pat_', '11', 'X'.repeat(40)),
+    k('AK', 'IA', 'ABCDEFGHIJKLMNOP'),
+    k('xo', 'xb-', '1234567890-abcdefghij'),
+    k('AI', 'za', 'S'.repeat(35)),
+    k('ey', 'J', 'x'.repeat(16), '.', 'ey', 'J', 'y'.repeat(16), '.', 'z'.repeat(16)),
+    k('-----BEGIN RSA ', 'PRIVATE KEY-----\nMIIEow\n-----END RSA ', 'PRIVATE KEY-----'),
+    k('vc', '_', 'a'.repeat(43)),
   ];
   for (const s of samples) {
     const out = scrub(`before ${s} after`);
@@ -25,8 +29,8 @@ test('scrub: redacts sk-, ghp_, github_pat_, AKIA, xox, AIza, JWT, PEM private k
 });
 
 test('scrub: key=value keeps the key name', () => {
-  assert.equal(scrub('API_KEY=abcd1234efgh'), 'API_KEY=[redacted]');
-  assert.equal(scrub('password: "hunter2hunter2"'), 'password: "[redacted]"');
+  assert.equal(scrub(k('API', '_KEY=', 'abcd1234efgh')), 'API_KEY=[redacted]');
+  assert.equal(scrub(k('pass', 'word: "', 'hunter2hunter2', '"')), 'password: "[redacted]"');
 });
 
 test('scrub: leaves normal prose alone', () => {

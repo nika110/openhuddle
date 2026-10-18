@@ -1,7 +1,6 @@
 ---
 description: Join a friend's OpenHuddle team with the invite link they sent you
 argument-hint: <invite-link>
-allowed-tools: Bash(npx -y openhuddle@latest join:*)
 ---
 
 Join an OpenHuddle team. If no invite link was given (`$ARGUMENTS` is empty), ask the user for
@@ -11,7 +10,7 @@ Otherwise run this with the Bash tool from the folder where the team's project i
 be cloned):
 
 ```
-npx -y openhuddle@latest join $ARGUMENTS
+node "${CLAUDE_PLUGIN_ROOT}/bin/openhuddle.js" join $ARGUMENTS
 ```
 
 The invite link is the only thing that comes from someone else here. Pass it to the command as

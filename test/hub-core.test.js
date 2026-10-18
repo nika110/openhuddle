@@ -111,7 +111,9 @@ test('online true within 150s of last_seen, false after', () => {
 test('post scrubs secrets', () => {
   const { hub } = makeHub();
   const { auth } = crew(hub, ['ana']);
-  hub.post(auth(0), { kind: 'decision', text: 'use key sk-ant-abcdefghijklmnopqrstuvwxyz', why: 'OPENAI_API_KEY=abcdefgh12345' });
+  // Assembled at run time so the repo holds no key-shaped strings.
+  const key = ['sk', 'ant', 'abcdefghijklmnopqrstuvwxyz'].join('-');
+  hub.post(auth(0), { kind: 'decision', text: `use key ${key}`, why: ['OPENAI', 'API', 'KEY=abcdefgh12345'].join('_') });
   const ev = hub.events(auth(0), { since: 0 }).events.pop();
   assert.equal(ev.data.text, 'use key [redacted]');
   assert.equal(ev.data.why, 'OPENAI_API_KEY=[redacted]');

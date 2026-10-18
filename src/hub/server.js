@@ -316,7 +316,7 @@ export async function startHub({
   }
 
   async function handle(req, res) {
-    const url = new URL(req.url, 'http://hub');
+    const url = new URL(req.url, 'http://localhost');
     const path = url.pathname;
     if (path === '/health') return sendJson(res, 200, { ok: true, version: VERSION });
     if (path.startsWith('/api/')) return api(req, res, url);

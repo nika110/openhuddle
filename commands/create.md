@@ -1,7 +1,6 @@
 ---
 description: Start an OpenHuddle team for this project and get an invite link for your friends
 argument-hint: '[--name "Team name"] [--as yourname]'
-allowed-tools: Bash(npx -y openhuddle@latest create:*)
 ---
 
 Start an OpenHuddle team for this project. Run this with the Bash tool from the project's root
@@ -9,7 +8,7 @@ folder (it must be a git repository; if it is not, tell the user to run `git ini
 first commit, and stop):
 
 ```
-npx -y openhuddle@latest create $ARGUMENTS
+node "${CLAUDE_PLUGIN_ROOT}/bin/openhuddle.js" create $ARGUMENTS
 ```
 
 Then tell the user, briefly and in plain words:
