@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 34 260 172" role="img" aria-label="Three penguins in a huddle">
+  <title>OpenHuddle</title>
+  <defs>
+    <!-- One penguin, centered on its belly, about 100 wide and 140 tall. -->
+    <g id="penguin">
+      <ellipse cx="-14" cy="64" rx="13" ry="6" fill="#F5813D" stroke="#FFFFFF" stroke-width="4" paint-order="stroke"/>
+      <ellipse cx="14" cy="64" rx="13" ry="6" fill="#F5813D" stroke="#FFFFFF" stroke-width="4" paint-order="stroke"/>
+      <ellipse cx="-44" cy="12" rx="9" ry="24" transform="rotate(18 -44 12)" fill="#171A3A" stroke="#FFFFFF" stroke-width="4" paint-order="stroke"/>
+      <ellipse cx="44" cy="12" rx="9" ry="24" transform="rotate(-18 44 12)" fill="#171A3A" stroke="#FFFFFF" stroke-width="4" paint-order="stroke"/>
+      <path d="M0 -70 C33 -70 46 -38 46 2 C46 42 32 66 0 66 C-32 66 -46 42 -46 2 C-46 -38 -33 -70 0 -70 Z"
+            fill="#171A3A" stroke="#FFFFFF" stroke-width="5" paint-order="stroke"/>
+      <!-- Heart-shaped face running into the belly. -->
+      <path d="M0 -26 C7 -50 34 -54 33 -29 C33 -12 34 2 34 20 C34 46 20 59 0 59 C-20 59 -34 46 -34 20 C-34 2 -33 -12 -33 -29 C-34 -54 -7 -50 0 -26 Z" fill="#FFFFFF"/>
+      <circle cx="-13" cy="-36" r="5.6" fill="#171A3A"/>
+      <circle cx="13" cy="-36" r="5.6" fill="#171A3A"/>
+      <circle cx="-11.4" cy="-37.8" r="1.8" fill="#FFFFFF"/>
+      <circle cx="14.6" cy="-37.8" r="1.8" fill="#FFFFFF"/>
+      <path d="M-8 -27 Q0 -29.5 8 -27 Q4 -18 0 -16 Q-4 -18 -8 -27 Z" fill="#F5813D"/>
+      <ellipse cx="-22" cy="-24" rx="5.5" ry="3.2" fill="#FF8FA3" opacity="0.7"/>
+      <ellipse cx="22" cy="-24" rx="5.5" ry="3.2" fill="#FF8FA3" opacity="0.7"/>
+    </g>
+    <!-- Scarf: a band around the neck plus a hanging tail. Colored per penguin. -->
+    <g id="scarf">
+      <path d="M-43 -12 Q0 3 43 -12 L45 0 Q0 16 -45 0 Z"/>
+      <path d="M14 1 L26 -1 L30 31 L18 33 Z"/>
+    </g>
+  </defs>
+
+  <!-- Left and right penguins stand a little back, leaning in. -->
+  <g transform="translate(64 130) rotate(-8) scale(0.86)">
+    <use href="#penguin"/>
+    <use href="#scarf" fill="#E8505B"/>
+  </g>
+  <g transform="translate(196 130) rotate(8) scale(0.86)">
+    <use href="#penguin"/>
+    <use href="#scarf" fill="#3D6DF2" transform="scale(-1 1)"/>
+  </g>
+  <!-- The middle penguin is in front. -->
+  <g transform="translate(130 112)">
+    <use href="#penguin"/>
+    <use href="#scarf" fill="#F2B705"/>
+  </g>
+</svg>

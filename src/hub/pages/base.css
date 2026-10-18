@@ -127,22 +127,18 @@ kbd {
   letter-spacing: -0.02em;
 }
 
-.brand svg {
-  width: 30px;
-  height: 30px;
+.brand-mark {
+  height: 32px;
+  width: auto;
   flex: none;
 }
 
-.mark-1 {
-  fill: var(--p1);
-}
-
-.mark-2 {
-  fill: var(--p2);
-}
-
-.mark-3 {
-  fill: var(--p3);
+.hero-mascot {
+  display: block;
+  width: 210px;
+  max-width: 60%;
+  height: auto;
+  margin: 0 0 18px -6px;
 }
 
 /* Player color classes: set --pc, then any child can use it. */

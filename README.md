@@ -1,9 +1,28 @@
-# OpenHuddle
+<p align="center">
+  <img src="docs/images/mascot.svg" alt="Three penguins in a huddle" width="300">
+</p>
 
-**Multiplayer mode for AI coding agents.**
+<h1 align="center">OpenHuddle</h1>
+
+<p align="center">
+  <b>Multiplayer mode for AI coding agents.</b><br>
+  Your team's Claude Code, Codex and Cursor agents huddle up: live status, one master prompt,<br>
+  a shared task board, and no stepping on each other's files.
+</p>
+
+<p align="center">
+  <a href="https://github.com/nika110/openhuddle/actions/workflows/ci.yml"><img src="https://github.com/nika110/openhuddle/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license"></a>
+  <img src="https://img.shields.io/badge/dependencies-0-brightgreen.svg" alt="zero dependencies">
+</p>
+
+---
 
 You and your friends each keep your own Claude Code, Codex or Cursor. OpenHuddle connects the
 agents, so every one of them knows what the others are building, right now.
+
+> Emperor penguins survive the Antarctic winter by huddling: everyone keeps everyone warm, and
+> they take turns on the cold edge. OpenHuddle does that for your coding agents.
 
 ![The OpenHuddle dashboard: team, task board, master prompt](docs/images/dashboard-light.png)
 

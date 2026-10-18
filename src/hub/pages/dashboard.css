@@ -105,9 +105,8 @@
   font-size: 18px;
 }
 
-.bar .brand svg {
-  width: 26px;
-  height: 26px;
+.bar .brand .brand-mark {
+  height: 28px;
 }
 
 .bar-team {
