@@ -61,7 +61,10 @@ claude plugin marketplace remove openhuddle
    already published by hand is skipped.
 4. Upgrade the public hub: `sudo env PATH=/opt/node/bin:$PATH npm i -g openhuddle@X.Y.Z` and
    `sudo systemctl restart openhuddle-hub`.
-5. `mcp-publisher publish` from the repo root to update the MCP Registry listing.
+5. `node scripts/mcp-registry-publish.mjs` from the repo root to update the MCP Registry listing
+   (it prints a GitHub device code to enter at github.com/login/device, then publishes
+   `server.json`; `mcp-publisher publish` does the same if you have it installed).
+6. Glama picks the GitHub release up on its own (Auto-Release is on for the listing).
 
 Schema changes to the hub database go into `MIGRATIONS` in `src/hub/db.js` as a new entry;
 never edit an existing one.
