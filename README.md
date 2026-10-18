@@ -219,7 +219,9 @@ npx openhuddle hub [--port 8787]                  run your own hub
 `--hub`. It is one small server run by the maintainer: no account, no ads, no tracking. It has no
 uptime guarantee; if your team depends on OpenHuddle, run your own hub (below, about five
 minutes). What it stores and for how long is listed under
-[Security and privacy](#security-and-privacy).
+[Security and privacy](#security-and-privacy), in the
+[privacy policy](https://github.com/nika110/openhuddle/blob/main/PRIVACY.md) and the
+[terms of use](https://github.com/nika110/openhuddle/blob/main/TERMS.md).
 
 ## Run your own hub
 

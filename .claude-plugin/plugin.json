@@ -1,5 +1,6 @@
 {
   "name": "openhuddle",
+  "displayName": "OpenHuddle",
   "version": "0.3.3",
   "description": "Multiplayer mode for AI coding agents. Your team's Claude Code, Codex and Cursor agents share live status, one co-written master prompt, a task board, file claims and questions. Start with /openhuddle:create or /openhuddle:join <invite-link>.",
   "author": {
@@ -8,26 +9,48 @@
   },
   "homepage": "https://github.com/nika110/openhuddle#readme",
   "repository": "https://github.com/nika110/openhuddle",
+  "documentationUrl": "https://github.com/nika110/openhuddle#readme",
+  "supportUrl": "https://github.com/nika110/openhuddle/issues",
+  "privacyPolicyUrl": "https://github.com/nika110/openhuddle/blob/main/PRIVACY.md",
+  "termsOfServiceUrl": "https://github.com/nika110/openhuddle/blob/main/TERMS.md",
   "license": "MIT",
-  "keywords": ["multiplayer", "team", "collaboration", "agents", "mcp", "vibe-coding"],
+  "keywords": [
+    "multiplayer",
+    "team",
+    "collaboration",
+    "agents",
+    "mcp",
+    "vibe-coding"
+  ],
   "mcpServers": {
     "openhuddle": {
       "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/bin/openhuddle.js", "mcp"]
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/bin/openhuddle.js",
+        "mcp"
+      ]
     }
   },
   "hooks": {
     "SessionStart": [
       {
         "hooks": [
-          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/openhuddle.js\" hook session-start", "timeout": 10 }
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/openhuddle.js\" hook session-start",
+            "timeout": 10
+          }
         ]
       }
     ],
     "UserPromptSubmit": [
       {
         "hooks": [
-          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/openhuddle.js\" hook prompt", "timeout": 10 }
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/openhuddle.js\" hook prompt",
+            "timeout": 10
+          }
         ]
       }
     ],
@@ -35,7 +58,11 @@
       {
         "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash|PowerShell",
         "hooks": [
-          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/openhuddle.js\" hook pre-edit", "timeout": 10 }
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/openhuddle.js\" hook pre-edit",
+            "timeout": 10
+          }
         ]
       }
     ],
@@ -43,14 +70,22 @@
       {
         "matcher": "Edit|Write|MultiEdit|NotebookEdit",
         "hooks": [
-          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/openhuddle.js\" hook post-edit", "timeout": 10 }
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/openhuddle.js\" hook post-edit",
+            "timeout": 10
+          }
         ]
       }
     ],
     "Stop": [
       {
         "hooks": [
-          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/openhuddle.js\" hook stop", "timeout": 10 }
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/openhuddle.js\" hook stop",
+            "timeout": 10
+          }
         ]
       }
     ]
