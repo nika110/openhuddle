@@ -1,0 +1,7 @@
+node_modules/
+.vibecrew/
+*.db
+*.db-wal
+*.db-shm
+*.tgz
+.DS_Store

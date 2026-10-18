@@ -1,0 +1,43 @@
+{
+  "name": "vibecrew",
+  "version": "0.1.0",
+  "description": "Multiplayer mode for AI coding agents. Your crew's Claude Code, Codex and Cursor agents share live status, one master prompt, a task board and file claims.",
+  "type": "module",
+  "bin": {
+    "vibecrew": "bin/vibecrew.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test",
+    "hub": "node bin/vibecrew.js hub"
+  },
+  "keywords": [
+    "ai",
+    "agents",
+    "claude-code",
+    "codex",
+    "cursor",
+    "mcp",
+    "multiplayer",
+    "vibe-coding",
+    "collaboration"
+  ],
+  "author": "nika110",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nika110/vibecrew.git"
+  },
+  "homepage": "https://github.com/nika110/vibecrew#readme",
+  "bugs": {
+    "url": "https://github.com/nika110/vibecrew/issues"
+  }
+}
