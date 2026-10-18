@@ -4,8 +4,9 @@ const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.ur
 
 export const VERSION = pkg.version;
 
-// Hosted hub. Override with --hub or OPENHUDDLE_HUB.
-export const DEFAULT_HUB = 'http://localhost:8787';
+// The public hub `create` uses when no --hub / OPENHUDDLE_HUB is given. Empty until it is live;
+// invite links always carry their own hub, so `join` never needs this.
+export const DEFAULT_HUB = '';
 
 export const DEFAULTS = Object.freeze({
   assign_mode: 'hybrid',

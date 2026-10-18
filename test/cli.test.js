@@ -84,6 +84,19 @@ test('cli: parseInvite', () => {
   assert.equal(parseInvite('nonsense'), null);
 });
 
+test('cli: create with no hub configured explains how to get one', async () => {
+  const repo = makeRepo();
+  try {
+    const io = capture(repo);
+    assert.equal(await main(['create'], io), 1);
+    assert.match(io.stderr, /npx openhuddle hub/);
+    assert.match(io.stderr, /--hub/);
+    assert.ok(!existsSync(join(repo, '.openhuddle')), 'nothing written');
+  } finally {
+    cleanup(repo);
+  }
+});
+
 test('cli: create outside git repo exits 1 with hint', async () => {
   const dir = tempDir();
   const io = capture(dir);

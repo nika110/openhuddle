@@ -43,7 +43,8 @@ test('pages: landing has quickstart commands', () => {
   assert.ok(html.includes('npx openhuddle join'));
   assert.ok(html.includes('npx openhuddle hub'));
   assert.ok(html.includes('https://github.com/nika110/openhuddle'));
-  assert.equal(html.split('{{HUB_URL}}').length - 1, 1, 'hub url placeholder appears once');
+  // The page is served by one particular hub, so its create commands point at that hub.
+  assert.equal(html.split('npx openhuddle create --hub {{HUB_URL}}').length - 1, 2);
 });
 
 test('pages: every page is CSP-clean (no inline script, style blocks or style attributes)', () => {

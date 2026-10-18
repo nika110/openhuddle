@@ -110,8 +110,15 @@ function explain(e) {
   return e?.message || String(e);
 }
 
+const NO_HUB = `There is no public OpenHuddle hub yet, so one of you runs it:
+  1. On a machine your friends can reach:  npx openhuddle hub --public-url https://your-host
+  2. In your project:                      npx openhuddle create --hub https://your-host
+(or set OPENHUDDLE_HUB once instead of passing --hub). Friends just use the invite link.`;
+
 function hubUrl(ctx, flags) {
-  return String(flags.hub || ctx.env.OPENHUDDLE_HUB || DEFAULT_HUB).replace(/\/+$/, '');
+  const hub = String(flags.hub || ctx.env.OPENHUDDLE_HUB || DEFAULT_HUB).replace(/\/+$/, '');
+  if (!hub) throw new Error(NO_HUB);
+  return hub;
 }
 
 function myName(ctx, flags, root) {
@@ -158,7 +165,8 @@ export function parseInvite(link, hubOverride) {
       return { hub: `${u.origin}${u.pathname.slice(0, i)}`, code };
     }
   } catch {}
-  if (/^t[a-z2-7]+\.[A-Za-z0-9_-]+$/.test(s)) return { hub: hubOverride || DEFAULT_HUB, code: s };
+  const hub = hubOverride || DEFAULT_HUB;
+  if (hub && /^t[a-z2-7]+\.[A-Za-z0-9_-]+$/.test(s)) return { hub, code: s };
   return null;
 }
 

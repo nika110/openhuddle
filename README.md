@@ -33,6 +33,10 @@ npx openhuddle join <invite-link>     # each friend
 
 That's the whole setup. No accounts, no config files, nothing to keep running.
 
+> **Early days:** the free public hub is not live yet. Until it is, one of you runs the hub
+> (`npx openhuddle hub`, see [Run your own hub](#run-your-own-hub)) and creates the team with
+> `--hub <its address>`. Friends still just run `join` with the invite link.
+
 ---
 
 ## Why
