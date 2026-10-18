@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>vibecrew dashboard</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/base.css">
+  <link rel="stylesheet" href="/static/dashboard.css">
+</head>
+<body class="dash">
+  <header class="bar">
+    <a class="brand" href="/" aria-label="vibecrew home">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><circle class="mark-1" cx="21" cy="39" r="11"/><circle class="mark-2" cx="43" cy="39" r="11"/><circle class="mark-3" cx="32" cy="21" r="11"/></svg>
+      <span class="brand-word">vibecrew</span>
+    </a>
+    <div class="bar-team">
+      <h1 id="team-name">Loading crew</h1>
+      <span id="conn" class="conn" data-state="off"><span class="conn-dot"></span><span id="conn-label">Connecting</span></span>
+    </div>
+    <div id="me" class="me"></div>
+  </header>
+
+  <div id="asks" class="asks" hidden></div>
+
+  <main id="app" class="app" hidden>
+    <aside class="col col-crew">
+      <section class="panel panel-crew" aria-labelledby="crew-title">
+        <div class="panel-head">
+          <h2 id="crew-title">Crew</h2>
+          <span id="crew-count" class="count"></span>
+        </div>
+        <ul id="members" class="members"></ul>
+        <div class="invite">
+          <button id="invite-show" class="btn ghost small" type="button">Show invite link</button>
+          <div id="invite-box" class="invite-box" hidden>
+            <label class="invite-label" for="invite-url">Anyone with this link can join the crew.</label>
+            <div class="invite-row">
+              <input id="invite-url" type="text" readonly>
+              <button id="invite-copy" class="btn small" type="button">Copy</button>
+            </div>
+            <p id="invite-exp" class="invite-exp"></p>
+          </div>
+        </div>
+      </section>
+      <section class="panel panel-rules" aria-labelledby="rules-title">
+        <div class="panel-head">
+          <h2 id="rules-title">House rules</h2>
+        </div>
+        <dl id="rules" class="rules"></dl>
+        <p class="hint">Change these by telling your agent, for example “let the agent assign tasks from now on”.</p>
+      </section>
+    </aside>
+
+    <div class="col col-work">
+      <section class="panel panel-board" aria-labelledby="board-title">
+        <div class="panel-head">
+          <h2 id="board-title">Board</h2>
+          <span id="board-count" class="count"></span>
+        </div>
+        <div id="board" class="board"></div>
+      </section>
+
+      <section class="panel panel-prompt" aria-labelledby="prompt-title">
+        <div class="panel-head">
+          <h2 id="prompt-title">Master prompt</h2>
+          <span id="prompt-badge" class="badge"></span>
+        </div>
+        <div id="prompt-bar" class="prompt-bar"></div>
+        <div id="sections" class="sections"></div>
+      </section>
+    </div>
+
+    <aside class="col col-feed">
+      <section class="panel panel-feed feed-panel" aria-labelledby="feed-title">
+        <div class="panel-head">
+          <h2 id="feed-title">Live feed</h2>
+        </div>
+        <ol id="feed" class="feed"></ol>
+      </section>
+    </aside>
+  </main>
+
+  <section id="locked-out" class="locked-out" hidden>
+    <div class="locked-card">
+      <div class="join-dots" aria-hidden="true"><span class="dot c1"></span><span class="dot c2"></span><span class="dot c3"></span></div>
+      <h2 id="locked-title">Open the dashboard from your project</h2>
+      <p id="locked-text">This page needs your crew access key. Run this inside the project folder and it opens the dashboard for you:</p>
+      <div class="cmd"><code id="cmd-dash">npx vibecrew dash</code></div>
+    </div>
+  </section>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <script src="/static/dashboard.js" type="module"></script>
+</body>
+</html>

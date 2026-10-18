@@ -1,0 +1,577 @@
+/* Landing and join pages. */
+
+.site {
+  font-size: 18px;
+  line-height: 1.55;
+}
+
+.top,
+.site main,
+.foot {
+  width: 100%;
+  max-width: 1160px;
+  margin: 0 auto;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 22px;
+  padding-bottom: 22px;
+}
+
+.top nav a {
+  font-weight: 600;
+  font-size: 16px;
+  text-decoration: none;
+  padding: 8px 4px;
+}
+
+.top nav a:hover {
+  text-decoration: underline;
+}
+
+:where(.site) h1,
+:where(.site) h2,
+:where(.site) h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+:where(.site) h2 {
+  font-size: 36px;
+  line-height: 1.1;
+  font-weight: 800;
+}
+
+:where(.site) h3 {
+  font-size: 21px;
+  line-height: 1.25;
+  font-weight: 700;
+}
+
+:where(.site) p {
+  margin: 0;
+}
+
+:where(.site main) > section {
+  padding: 72px 0;
+  border-top: 1px solid var(--line);
+}
+
+.hero {
+  border-top: 0;
+}
+
+.section-lede {
+  margin-top: 12px;
+  color: var(--muted);
+  max-width: 60ch;
+}
+
+/* Hero */
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: 56px;
+  align-items: center;
+  padding-top: 40px;
+}
+
+.hero h1 {
+  font-size: 68px;
+  line-height: 1.02;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  max-width: 13ch;
+}
+
+.lede {
+  margin-top: 24px;
+  font-size: 21px;
+  line-height: 1.5;
+  color: var(--muted);
+  max-width: 34ch;
+}
+
+.hero .cmd {
+  margin-top: 32px;
+  max-width: 420px;
+}
+
+.fine {
+  margin-top: 14px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* The lobby: a live-looking crew, the page's one loud element. */
+
+.lobby {
+  margin: 0;
+  padding: 22px;
+  border-radius: 22px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.lobby-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 14px;
+}
+
+.lobby-team {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 18px;
+}
+
+.live {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ok);
+}
+
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ok);
+  animation: pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.players {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.players li {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  grid-template-areas:
+    "dot who tool"
+    ".   doing doing";
+  align-items: center;
+  column-gap: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--sunk);
+  border-left: 4px solid var(--pc);
+}
+
+.players .dot {
+  grid-area: dot;
+  width: 12px;
+  height: 12px;
+}
+
+.players .who {
+  grid-area: who;
+  font-weight: 700;
+  font-family: var(--font-display);
+}
+
+.players .tool {
+  grid-area: tool;
+  justify-self: start;
+  font-size: 13px;
+  color: var(--muted);
+  padding: 1px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.players .doing {
+  grid-area: doing;
+  font-size: 15px;
+  color: var(--muted);
+  transition: color 400ms ease;
+}
+
+.players .doing.changed {
+  color: var(--ink);
+}
+
+.lobby-feed {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 16px 0 0;
+  border-top: 1px dashed var(--line);
+  display: grid;
+  gap: 10px;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.lobby-feed li {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.lobby-feed .dot {
+  width: 8px;
+  height: 8px;
+  transform: translateY(-1px);
+}
+
+.lobby-feed code {
+  font-size: 13px;
+  padding: 1px 5px;
+  border-radius: 6px;
+  background: var(--sunk);
+  overflow-wrap: anywhere;
+}
+
+.revealing > li {
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 360ms ease, transform 360ms ease;
+}
+
+.revealing > li.shown {
+  opacity: 1;
+  transform: none;
+}
+
+/* Steps: a real sequence, so it is numbered. */
+
+.step-list {
+  list-style: none;
+  margin: 36px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 32px;
+}
+
+.step-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.step-num {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--pc);
+  color: #171a3a;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 21px;
+}
+
+.step-list p {
+  color: var(--muted);
+  font-size: 16px;
+}
+
+.step-list p code {
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.step-list .cmd code {
+  font-size: 14px;
+}
+
+/* Talk to your agent */
+
+.exchanges {
+  list-style: none;
+  margin: 36px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 32px;
+}
+
+.exchanges li {
+  display: grid;
+  gap: 8px;
+}
+
+.you {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-self: start;
+  padding: 10px 16px;
+  border-radius: 16px 16px 16px 4px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--pc);
+  font-weight: 600;
+}
+
+.agent {
+  margin-left: 24px;
+  color: var(--muted);
+  font-size: 16px;
+}
+
+.agent code {
+  color: var(--ink);
+  font-size: 14px;
+}
+
+/* How it works */
+
+.diagram {
+  width: 100%;
+  max-width: 820px;
+  margin-top: 36px;
+  height: auto;
+}
+
+.wire {
+  fill: none;
+  stroke: var(--pc);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.hub-box {
+  fill: var(--ink);
+}
+
+.d-title {
+  fill: var(--bg);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 26px;
+}
+
+.hub-box + .d-title + .d-sub {
+  fill: var(--bg);
+  opacity: 0.75;
+}
+
+.machine {
+  fill: var(--surface);
+  stroke: var(--line);
+  stroke-width: 1.5;
+}
+
+.m-dot {
+  fill: var(--pc);
+}
+
+.d-name {
+  fill: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.d-sub {
+  fill: var(--muted);
+  font-family: var(--font-body);
+  font-size: 15px;
+}
+
+.git-line {
+  stroke: var(--muted);
+  stroke-width: 2;
+  stroke-dasharray: 6 8;
+}
+
+.how-notes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 32px;
+  margin-top: 32px;
+}
+
+.how-notes p {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 16px;
+}
+
+/* Self host */
+
+.host {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 380px);
+  gap: 32px;
+  align-items: center;
+}
+
+.host p {
+  margin-top: 10px;
+  color: var(--muted);
+  max-width: 52ch;
+}
+
+.host p code {
+  color: var(--ink);
+}
+
+/* Footer */
+
+.foot {
+  padding-top: 32px;
+  padding-bottom: 48px;
+  border-top: 1px solid var(--line);
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.foot p + p {
+  margin-top: 6px;
+}
+
+.hub-url {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+/* Join page */
+
+.site main.join-main {
+  max-width: 760px;
+  padding-top: 48px;
+  padding-bottom: 96px;
+}
+
+.join-main h1 {
+  font-size: 48px;
+  line-height: 1.05;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.join-crew {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 24px;
+}
+
+.join-crew .dot {
+  width: 18px;
+  height: 18px;
+}
+
+.join-main .lede {
+  max-width: 46ch;
+}
+
+.join-main .cmd {
+  margin-top: 28px;
+}
+
+.join-main .cmd code {
+  font-size: 14px;
+}
+
+.join-what {
+  margin-top: 28px;
+  padding-left: 16px;
+  border-left: 4px solid var(--p4);
+  max-width: 58ch;
+}
+
+.join-main .fine {
+  margin-top: 20px;
+}
+
+/* Responsive */
+
+@media (max-width: 960px) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 40px;
+  }
+
+  .hero h1 {
+    font-size: 56px;
+  }
+
+  .step-list,
+  .how-notes {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+
+  .host {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .exchanges {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 520px) {
+  .site {
+    font-size: 17px;
+  }
+
+  .top,
+  .site main,
+  .foot {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  :where(.site main) > section {
+    padding: 52px 0;
+  }
+
+  .hero {
+    padding-top: 16px;
+  }
+
+  .hero h1 {
+    font-size: 42px;
+  }
+
+  .lede {
+    font-size: 18px;
+  }
+
+  :where(.site) h2 {
+    font-size: 30px;
+  }
+
+  .lobby {
+    padding: 16px;
+  }
+
+  .join-main h1 {
+    font-size: 36px;
+  }
+
+  .cmd {
+    flex-wrap: wrap;
+  }
+
+  .cmd .btn {
+    margin-left: auto;
+  }
+}

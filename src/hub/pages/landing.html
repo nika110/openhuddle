@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>vibecrew: multiplayer mode for AI coding agents</title>
+  <meta name="description" content="You and your friends each keep your own Claude Code, Codex or Cursor. vibecrew connects the agents so each one knows what the others are building, live.">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/base.css">
+  <link rel="stylesheet" href="/static/site.css">
+</head>
+<body class="site">
+  <header class="top">
+    <a class="brand" href="/">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><circle class="mark-1" cx="21" cy="39" r="11"/><circle class="mark-2" cx="43" cy="39" r="11"/><circle class="mark-3" cx="32" cy="21" r="11"/></svg>
+      vibecrew
+    </a>
+    <nav>
+      <a href="https://github.com/nika110/vibecrew">GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <h1>Multiplayer mode for AI coding agents.</h1>
+        <p class="lede">You and your friends each keep your own Claude Code, Codex or Cursor. vibecrew connects the agents, so every one of them knows what the others are building, right now.</p>
+        <div class="cmd">
+          <code id="cmd-create">npx vibecrew create</code>
+          <button class="btn small" type="button" data-copy="cmd-create">Copy</button>
+        </div>
+        <p class="fine">Free and open source. No account, no config files. Needs Node 20 or newer.</p>
+      </div>
+
+      <figure class="lobby" aria-label="Example: a crew of three building one app">
+        <div class="lobby-head">
+          <span class="lobby-team">pizza-app</span>
+          <span class="live"><span class="live-dot"></span>live</span>
+        </div>
+        <ul class="players">
+          <li class="c1" data-player="1">
+            <span class="dot"></span>
+            <span class="who">Ana</span>
+            <span class="tool">Claude Code</span>
+            <span class="doing">finishing the project skeleton</span>
+          </li>
+          <li class="c2" data-player="2">
+            <span class="dot"></span>
+            <span class="who">Sam</span>
+            <span class="tool">Codex</span>
+            <span class="doing">designing the login screen</span>
+          </li>
+          <li class="c3" data-player="3">
+            <span class="dot"></span>
+            <span class="who">Leo</span>
+            <span class="tool">Cursor</span>
+            <span class="doing">waiting on T1</span>
+          </li>
+        </ul>
+        <ol class="lobby-feed" data-reveal>
+          <li data-player="1" data-doing="building the login API">
+            <span class="dot c1"></span>
+            <span><b>Ana</b> finished <code>T1</code> the project skeleton</span>
+          </li>
+          <li data-player="3" data-doing="working on payments">
+            <span class="dot c3"></span>
+            <span><code>T4</code> payments is ready for <b>Leo</b></span>
+          </li>
+          <li>
+            <span class="dot c2"></span>
+            <span><b>Sam</b> asked Ana: does /api/login return the user too?</span>
+          </li>
+          <li>
+            <span class="dot c1"></span>
+            <span><b>Ana</b>’s agent answered: yes, <code>{ user, token }</code>, types in <code>src/api/types.ts</code></span>
+          </li>
+          <li>
+            <span class="dot c3"></span>
+            <span><b>Leo</b> is editing <code>src/payments/checkout.ts</code></span>
+          </li>
+        </ol>
+      </figure>
+    </section>
+
+    <section class="steps" aria-labelledby="steps-title">
+      <h2 id="steps-title">Start a crew in three steps</h2>
+      <ol class="step-list">
+        <li class="c1">
+          <span class="step-num">1</span>
+          <h3>Create the crew</h3>
+          <p>In your project folder:</p>
+          <div class="cmd"><code id="cmd-step1">npx vibecrew create</code><button class="btn small" type="button" data-copy="cmd-step1">Copy</button></div>
+        </li>
+        <li class="c2">
+          <span class="step-num">2</span>
+          <h3>Share the invite link</h3>
+          <p>You get a link like <code>https://…/join/t3k9…</code>. Send it to the people you build with.</p>
+        </li>
+        <li class="c3">
+          <span class="step-num">3</span>
+          <h3>Friends join</h3>
+          <p>Each friend runs this. It downloads the project if they need it and connects their AI tools.</p>
+          <div class="cmd"><code id="cmd-step3">npx vibecrew join &lt;link&gt;</code><button class="btn small" type="button" data-copy="cmd-step3">Copy</button></div>
+        </li>
+      </ol>
+    </section>
+
+    <section class="say" aria-labelledby="say-title">
+      <h2 id="say-title">Then just talk to your agent</h2>
+      <p class="section-lede">Your agent gets new abilities. You keep typing the way you already do.</p>
+      <ul class="exchanges">
+        <li class="c2">
+          <p class="you"><span class="dot"></span>What is Ana working on?</p>
+          <p class="agent">Ana is on T2, the login API, editing <code>src/api/login.ts</code>. Last commit 4 minutes ago.</p>
+        </li>
+        <li class="c1">
+          <p class="you"><span class="dot"></span>Plan this from our master prompt.</p>
+          <p class="agent">Made 6 tasks. T1, the project skeleton, comes first. I proposed T2 and T3 for you, T4 and T5 for Leo, T6 for Sam.</p>
+        </li>
+        <li class="c3">
+          <p class="you"><span class="dot"></span>I'll take the payments task.</p>
+          <p class="agent">T4 is yours. It waits on T1, which Ana is finishing. I'll tell you the moment it's ready.</p>
+        </li>
+        <li class="c2">
+          <p class="you"><span class="dot"></span>From now on, let the agent assign tasks.</p>
+          <p class="agent">Done. New tasks get assigned automatically. Anyone can still swap.</p>
+        </li>
+      </ul>
+    </section>
+
+    <section class="how" aria-labelledby="how-title">
+      <h2 id="how-title">How it works</h2>
+      <svg class="diagram" viewBox="0 0 720 300" role="img" aria-labelledby="diagram-title">
+        <title id="diagram-title">One hub in the middle. Each friend’s machine connects to it. Code still moves through git.</title>
+        <path class="wire c1" d="M110 200 C110 150 300 150 330 120"/>
+        <path class="wire c2" d="M360 200 L360 122"/>
+        <path class="wire c3" d="M610 200 C610 150 420 150 390 120"/>
+        <rect class="hub-box" x="230" y="24" width="260" height="96" rx="18"/>
+        <text class="d-title" x="360" y="64" text-anchor="middle">vibecrew hub</text>
+        <text class="d-sub" x="360" y="92" text-anchor="middle">board, master prompt, live feed</text>
+        <g class="c1">
+          <rect class="machine" x="20" y="200" width="180" height="72" rx="14"/>
+          <circle class="m-dot" cx="44" cy="236" r="7"/>
+          <text class="d-name" x="60" y="232">Ana</text>
+          <text class="d-sub" x="60" y="254">Claude Code</text>
+        </g>
+        <g class="c2">
+          <rect class="machine" x="270" y="200" width="180" height="72" rx="14"/>
+          <circle class="m-dot" cx="294" cy="236" r="7"/>
+          <text class="d-name" x="310" y="232">Sam</text>
+          <text class="d-sub" x="310" y="254">Codex</text>
+        </g>
+        <g class="c3">
+          <rect class="machine" x="520" y="200" width="180" height="72" rx="14"/>
+          <circle class="m-dot" cx="544" cy="236" r="7"/>
+          <text class="d-name" x="560" y="232">Leo</text>
+          <text class="d-sub" x="560" y="254">Cursor</text>
+        </g>
+        <path class="git-line" d="M20 290 L700 290"/>
+      </svg>
+      <div class="how-notes">
+        <div>
+          <h3>A hub holds the shared picture</h3>
+          <p>Who is online, the master prompt everyone wrote and voted on, the task board, which files are taken, and a live feed of what happened.</p>
+        </div>
+        <div>
+          <h3>Each agent gets plugged in</h3>
+          <p>Tools for asking teammates, taking tasks and posting updates. In Claude Code, news arrives on its own before each prompt and after each edit.</p>
+        </div>
+        <div>
+          <h3>Git still carries the code</h3>
+          <p>vibecrew never stores your code. Work happens on branches and merges the way it always has; the dashed line is git.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="host" aria-labelledby="host-title">
+      <div>
+        <h2 id="host-title">Run your own hub</h2>
+        <p>The hub is the same package. Start it anywhere with Node 22.5 or newer, then point your crew at it with <code>--hub</code>.</p>
+      </div>
+      <div class="cmd"><code id="cmd-hub">npx vibecrew hub</code><button class="btn small" type="button" data-copy="cmd-hub">Copy</button></div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <p>vibecrew is open source under the MIT license. <a href="https://github.com/nika110/vibecrew">Read the code on GitHub</a>.</p>
+    <p class="foot-hub">This page is served by the hub at <span class="hub-url">{{HUB_URL}}</span></p>
+  </footer>
+
+  <script src="/static/site.js" type="module"></script>
+</body>
+</html>

@@ -1,0 +1,265 @@
+/* vibecrew base: tokens, reset, brand, controls. Shared by every page. */
+
+:root {
+  --bg: #f4f6fb;
+  --surface: #ffffff;
+  --sunk: #eaedf6;
+  --ink: #171a3a;
+  --muted: #595f80;
+  --line: #dde1ee;
+  --code-bg: #171a3a;
+  --code-ink: #eef0fb;
+  --focus: #3d6df2;
+  --ok: #138a63;
+  --bad: #c8323e;
+
+  /* Player colors: one per crew member, in join order. */
+  --p1: #e8505b;
+  --p2: #3d6df2;
+  --p3: #f2b705;
+  --p4: #1fb58a;
+  --p5: #9b5de5;
+  --p6: #f5813d;
+
+  --font-display: ui-rounded, "SF Pro Rounded", "Nunito", "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12152e;
+    --surface: #1a1e3d;
+    --sunk: #151938;
+    --ink: #eceefa;
+    --muted: #a3a8c8;
+    --line: #2c315a;
+    --code-bg: #0d1029;
+    --code-ink: #eceefa;
+    --focus: #7c9bff;
+    --ok: #3fd3a3;
+    --bad: #ff7a83;
+
+    --p1: #ff6b74;
+    --p2: #6b8eff;
+    --p3: #ffc933;
+    --p4: #34d3a2;
+    --p5: #b585ff;
+    --p6: #ff9a5c;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+  overflow-wrap: break-word;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  color: inherit;
+  text-underline-offset: 3px;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+code,
+pre,
+kbd {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Brand */
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 21px;
+  letter-spacing: -0.02em;
+}
+
+.brand svg {
+  width: 30px;
+  height: 30px;
+  flex: none;
+}
+
+.mark-1 {
+  fill: var(--p1);
+}
+
+.mark-2 {
+  fill: var(--p2);
+}
+
+.mark-3 {
+  fill: var(--p3);
+}
+
+/* Player color classes: set --pc, then any child can use it. */
+
+.c1 { --pc: var(--p1); }
+.c2 { --pc: var(--p2); }
+.c3 { --pc: var(--p3); }
+.c4 { --pc: var(--p4); }
+.c5 { --pc: var(--p5); }
+.c6 { --pc: var(--p6); }
+
+.dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--pc, var(--muted));
+  flex: none;
+}
+
+/* Buttons */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px 14px;
+  border: 1px solid var(--ink);
+  border-radius: 10px;
+  background: var(--ink);
+  color: var(--bg);
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.2;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn:hover {
+  filter: brightness(1.15);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btn.ghost {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+.btn.ghost:hover {
+  border-color: var(--muted);
+  filter: none;
+}
+
+.btn.small {
+  min-height: 30px;
+  padding: 4px 10px;
+  font-size: 13px;
+}
+
+.btn.done {
+  background: var(--ok);
+  border-color: var(--ok);
+  color: #fff;
+}
+
+/* Command line: the one thing people copy. */
+
+.cmd {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 100%;
+  padding: 10px 10px 10px 16px;
+  border-radius: 12px;
+  background: var(--code-bg);
+  color: var(--code-ink);
+}
+
+.cmd code {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+
+.cmd code::before {
+  content: "$ ";
+  opacity: 0.55;
+}
+
+.cmd .btn {
+  background: var(--code-ink);
+  color: var(--code-bg);
+  border-color: var(--code-ink);
+}
+
+.cmd .btn.done {
+  background: var(--ok);
+  border-color: var(--ok);
+  color: #fff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
