@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1 — 2026-10-18
+
+- Listed in the official MCP Registry as `io.github.nika110/openhuddle` (`mcpName` in
+  package.json, `server.json` in the repo).
+
 ## 0.3.0 — 2026-10-18
 
 - **Claude Code plugin.** Install with

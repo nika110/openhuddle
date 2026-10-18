@@ -64,3 +64,12 @@ test('plugin: slash commands exist with descriptions and use the published CLI',
   assert.match(readFileSync(new URL('commands/create.md', root), 'utf8'), /npx -y openhuddle@latest create \$ARGUMENTS/);
   assert.match(readFileSync(new URL('commands/join.md', root), 'utf8'), /npx -y openhuddle@latest join \$ARGUMENTS/);
 });
+
+test('mcp registry: server.json matches package.json', () => {
+  const server = json('server.json');
+  assert.equal(server.name, pkg.mcpName);
+  assert.equal(server.version, pkg.version);
+  assert.equal(server.packages[0].identifier, pkg.name);
+  assert.equal(server.packages[0].version, pkg.version);
+  assert.ok(server.description.length <= 100, `description is ${server.description.length} chars`);
+});
