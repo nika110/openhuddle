@@ -163,6 +163,15 @@ The hub is the same package.
 npx openhuddle hub --port 8787 --public-url https://team.example.com
 ```
 
+or, on a fresh Ubuntu 24.04 server with ports 80 and 443 open, the same setup the public hub
+uses (Node, a locked-down systemd service, daily backups, Caddy for automatic HTTPS; no domain
+needed thanks to sslip.io):
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/nika110/openhuddle/main/deploy/provision-ubuntu.sh
+sudo bash provision-ubuntu.sh 203-0-113-7.sslip.io     # your server's IP with dashes
+```
+
 or with Docker:
 
 ```bash
