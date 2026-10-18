@@ -520,6 +520,13 @@ export class Hub {
     });
   }
 
+  // The owner wipes the team and everything in it, right now.
+  deleteOwnTeam(member) {
+    if (member.role !== 'owner') throw forbidden('owner_only', 'Only the team owner can delete the team.');
+    this.deleteTeam(member.team_id);
+    return { ok: true };
+  }
+
   // Housekeeping the server runs every few minutes: expired claims and week-old questions go,
   // and so do teams nobody has touched for retentionDays (0 keeps everything).
   sweep() {

@@ -186,6 +186,13 @@ test('http: behind a proxy, forged X-Forwarded-For hops do not dodge the rate li
   }
 });
 
+test('http: only the owner can delete the team', async () => {
+  const { a, b } = await crew();
+  assert.equal((await call('POST', '/api/team/delete', { token: b.token, body: {} })).status, 403);
+  assert.equal((await call('POST', '/api/team/delete', { token: a.token, body: {} })).status, 200);
+  assert.equal((await call('GET', '/api/state', { token: b.token })).status, 401);
+});
+
 test('http: create rate limit 429 after 20', async () => {
   // Earlier tests already used part of the budget from 127.0.0.1; keep creating until it trips.
   let status = 200;
@@ -194,5 +201,4 @@ test('http: create rate limit 429 after 20', async () => {
   }
   assert.equal(status, 429);
 });
-
 

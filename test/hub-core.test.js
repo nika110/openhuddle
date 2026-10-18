@@ -190,3 +190,17 @@ test('owner leaving hands ownership to the next member', () => {
   rejects(() => hub.auth(tokens[0]), 401, 'bad_token');
   assert.equal(hub.auth(tokens[1]).role, 'owner');
 });
+
+test('owner can delete the whole team at once; members cannot', () => {
+  const { hub } = makeHub();
+  const { auth, tokens, created } = crew(hub, ['ana', 'ben']);
+  hub.plan(auth(0), { tasks: [{ title: 'x' }] });
+  rejects(() => hub.deleteOwnTeam(auth(1)), 403, 'owner_only');
+  assert.deepEqual(hub.deleteOwnTeam(auth(0)), { ok: true });
+  rejects(() => hub.auth(tokens[0]), 401, 'bad_token');
+  rejects(() => hub.auth(tokens[1]), 401, 'bad_token');
+  for (const table of ['teams', 'members', 'events', 'tasks']) {
+    assert.equal(hub.get(`SELECT COUNT(*) AS n FROM ${table}`).n, 0, `${table} emptied`);
+  }
+  void created;
+});

@@ -317,3 +317,21 @@ test('cli: leave unwires and removes config', async () => {
   await main(['status'], st);
   assert.ok(!/bob \(/.test(st.stdout), st.stdout);
 });
+
+test('cli: delete-team needs --yes, then deletes the team and the local setup', async () => {
+  const repo = makeRepo();
+  try {
+    const io = capture(repo);
+    assert.equal(await main(['create', '--hub', hub.url, '--as', 'zoe', '--name', 'doomed'], io), 0, io.stderr);
+    const careful = capture(repo);
+    assert.equal(await main(['delete-team'], careful), 1);
+    assert.match(careful.stderr, /--yes/);
+    assert.ok(existsSync(join(repo, '.openhuddle', 'config.json')), 'nothing happens without --yes');
+    const sure = capture(repo);
+    assert.equal(await main(['delete-team', '--yes'], sure), 0, sure.stderr);
+    assert.match(sure.stdout, /doomed/);
+    assert.ok(!existsSync(join(repo, '.openhuddle')), 'local setup removed');
+  } finally {
+    cleanup(repo);
+  }
+});

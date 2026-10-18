@@ -308,6 +308,8 @@ export async function startHub({
         return sendJson(res, 200, hub.removeMember(member, body));
       case '/api/leave':
         return sendJson(res, 200, hub.leave(member));
+      case '/api/team/delete':
+        return sendJson(res, 200, hub.deleteOwnTeam(member));
       default:
         throw new HubError(404, 'not_found', `No route POST ${path}.`);
     }

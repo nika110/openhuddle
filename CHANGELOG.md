@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.3 — 2026-10-18
+
+- `npx openhuddle delete-team --yes`: the owner deletes the team and all of its data on the hub
+  at once, and the local setup with it.
+- The demo GIF is smaller (under 5 MB) and the MP4 moved to a release download, so the repo
+  passes the Claude plugin directory's file-size checks.
+- `glama.json` for the Glama MCP directory.
+
 ## 0.3.2 — 2026-10-18
 
 - Docs: requirements, updating, uninstalling, troubleshooting and the public hub in the README;

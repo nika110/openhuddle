@@ -31,6 +31,7 @@ Other commands:
   dash              open the live dashboard in your browser
   invite [--rotate] show the invite link (owner can --rotate it)
   remove <name>     remove a teammate from the team (owner only)
+  delete-team --yes delete the whole team and its data on the hub (owner only)
   doctor [--fix]    check the setup (and repair it)
   leave             leave the team and remove OpenHuddle from this project
   hub               run your own hub (--port, --db, --public-url, --trust-proxy,
@@ -51,6 +52,7 @@ const OPTIONS = {
   'retention-days': { type: 'string' },
   rotate: { type: 'boolean' },
   fix: { type: 'boolean' },
+  yes: { type: 'boolean' },
   dir: { type: 'string' },
   'no-open': { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
@@ -462,6 +464,24 @@ const COMMANDS = {
     removeConfig(project.root);
     ctx.out(`Left the team "${project.config.team_name ?? project.config.team_id}".`);
     for (const l of lines) ctx.out(`  - ${l}`);
+    return 0;
+  },
+
+  async 'delete-team'(ctx, flags) {
+    const project = needProject(ctx, flags);
+    if (!project) return 1;
+    const name = project.config.team_name ?? project.config.team_id;
+    if (!flags.yes) {
+      ctx.err(`This deletes the team "${name}" and everything in it on the hub (master prompt, tasks, feed, members), for everyone, right away.`);
+      ctx.err('Run again with --yes if you are sure: npx openhuddle delete-team --yes');
+      return 1;
+    }
+    await apiOf(project, { timeoutMs: 8000 }).post('/api/team/delete', {});
+    const lines = unwireAll(project.root, { home: ctx.home, claudeCli: claudeCli(ctx) });
+    removeConfig(project.root);
+    ctx.out(`Deleted the team "${name}" and all of its data on the hub.`);
+    for (const l of lines) ctx.out(`  - ${l}`);
+    ctx.out("Teammates' setups stop working; they can run `npx openhuddle leave` to clean up.");
     return 0;
   },
 

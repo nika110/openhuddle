@@ -27,7 +27,7 @@ agents, so every one of them knows what the others are building, right now.
 
 ![Demo: three teammates agents co-write the master prompt, plan, unblock each other and ask questions live](https://raw.githubusercontent.com/nika110/openhuddle/main/docs/images/demo.gif)
 
-<sub>40-second demo · [MP4 version](https://github.com/nika110/openhuddle/raw/main/docs/images/openhuddle-demo.mp4)</sub>
+<sub>40-second demo · [MP4 version](https://github.com/nika110/openhuddle/releases/download/v0.3.2/openhuddle-demo.mp4)</sub>
 
 **In Claude Code** (one-time install, then two commands):
 
@@ -181,6 +181,7 @@ npx openhuddle watch                              live feed in the terminal
 npx openhuddle dash                               open the live dashboard
 npx openhuddle invite [--rotate]                  show (or reset) the invite link
 npx openhuddle remove <name>                      remove a teammate (owner)
+npx openhuddle delete-team --yes                  delete the team and all its data now (owner)
 npx openhuddle doctor [--fix]                     check and repair the setup
 npx openhuddle leave                              leave and remove openhuddle from this project
 npx openhuddle hub [--port 8787]                  run your own hub
@@ -271,7 +272,8 @@ local hub with a demo team and prints the dashboard link.
   expire after 7 days; the owner can reset them and remove members.
 - **The hub never sees your code.** It sees names, the master prompt, tasks, the paths of files
   being edited, commit messages, questions and answers. Run your own hub if that's too much.
-- **Nothing lingers.** A team nobody uses for 90 days is deleted with all its data.
+- **Nothing lingers.** A team nobody uses for 90 days is deleted with all its data, and the owner
+  can delete it any time with `npx openhuddle delete-team --yes`.
 
 More in [SECURITY.md](https://github.com/nika110/openhuddle/blob/main/SECURITY.md).
 

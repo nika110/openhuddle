@@ -70,3 +70,5 @@ Retention on a hub (defaults, configurable with `--retention-days` and `--backup
 - With backups enabled, the hub keeps one snapshot per day for the last 7 days.
 - Leaving a team (`npx openhuddle leave`) removes you from it right away; the owner can
   remove anyone with `npx openhuddle remove <name>`.
+- The owner can delete the whole team and all of its data immediately with
+  `npx openhuddle delete-team --yes` (daily backups age out within 7 days).
