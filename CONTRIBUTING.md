@@ -56,8 +56,9 @@ claude plugin marketplace remove openhuddle
 1. Bump the version in `package.json`, `.claude-plugin/plugin.json` and `server.json` (both
    `version` fields); `test/plugin.test.js` fails if they disagree. Add a `CHANGELOG.md` entry.
 2. `npm test`, then commit, tag `vX.Y.Z` and push.
-3. `npm publish` (2FA), then create the GitHub release from the tag. The `publish` workflow
-   skips versions that are already on npm.
+3. Create the GitHub release from the tag. The `publish` workflow runs the tests and publishes
+   to npm with provenance through npm trusted publishing (no token, no 2FA prompt). A version
+   already published by hand is skipped.
 4. Upgrade the public hub: `sudo env PATH=/opt/node/bin:$PATH npm i -g openhuddle@X.Y.Z` and
    `sudo systemctl restart openhuddle-hub`.
 5. `mcp-publisher publish` from the repo root to update the MCP Registry listing.
