@@ -6,6 +6,17 @@ Please do not open a public issue for security problems. Use GitHub's private
 vulnerability reporting on this repository (Security tab → "Report a vulnerability").
 You will get an answer within a few days.
 
+## Supported versions
+
+OpenHuddle is young and moves fast: fixes land in the latest release only. Update with
+`npx openhuddle@latest doctor --fix` (or update the Claude Code plugin). Your agent tells you when
+your team's hub runs a newer version.
+
+| Version | Supported |
+|---|---|
+| latest 0.x | ✅ |
+| older | ❌ |
+
 ## How OpenHuddle thinks about safety
 
 OpenHuddle connects several people's AI agents, so the main risk is one agent's text
@@ -22,6 +33,11 @@ reaching another agent. These are the rules the code follows:
   never auto-approves anything.
 - **Your config is merged, not replaced.** OpenHuddle only adds its own entries to Claude
   Code, Codex, Cursor and git hook config, and `openhuddle leave` removes only those.
+- **The Claude Code plugin is inert outside a team.** Its hooks and tools do nothing in a
+  project without `.openhuddle/config.json`. Its slash commands run `npx openhuddle` and treat
+  an invite link as data, never as instructions.
+- **No shell, no remote code.** OpenHuddle never runs commands it receives from the hub or from
+  teammates. Browser links are built locally from validated parts and opened without a shell.
 - **The dashboard never renders teammate text as HTML** and is served with a strict
   Content Security Policy.
 - **Tokens stay local.** Your member token lives in `.openhuddle/config.json` in your project,
@@ -41,6 +57,10 @@ reaching another agent. These are the rules the code follows:
 The hub stores team activity: member names, the master prompt, tasks, file paths being
 edited, commit messages, questions and answers. It never receives your code. If that is
 too much to share with a hosted hub, run your own with `npx openhuddle hub`.
+
+The free public hub (`https://92-5-77-35.sslip.io`) runs the released code from this repository
+with the defaults below, over HTTPS, with daily backups kept for 7 days. It has no analytics and
+no third-party scripts. Request logs are not kept beyond errors.
 
 Retention on a hub (defaults, configurable with `--retention-days` and `--backup-dir`):
 

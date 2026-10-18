@@ -110,7 +110,7 @@ Watch it all live in the dashboard (`npx openhuddle dash`) or in your terminal
 ## How it works
 
 ```
-            ┌──────────── openhuddle hub ────────────┐
+            ┌─────────── OpenHuddle hub ───────────┐
             │ team · master prompt · task board    │
             │ file claims · questions · live feed  │
             └────▲─────────────▲─────────────▲─────┘
@@ -132,6 +132,7 @@ Watch it all live in the dashboard (`npx openhuddle dash`) or in your terminal
 
 | | Claude Code | Codex | Cursor |
 |---|:-:|:-:|:-:|
+| Install | plugin or `npx` | `npx` | `npx` |
 | Team tools (sync, ask, tasks, master prompt, plan) | ✅ | ✅ | ✅ |
 | News arrives on its own before each prompt and after each edit | ✅ | ask "what's new?" | ask "what's new?" |
 | Pauses before editing a teammate's file | ✅ | – | – |
@@ -152,7 +153,25 @@ can't quietly switch off everyone's edit guards. Anyone can take the lead.
 | How long a claim lasts | 30 minutes after the last edit | 5 to 240 minutes |
 | Lead | the team's creator, then whoever makes a plan | any member |
 
+## Requirements
+
+- **Node.js 20 or newer**, with `node` and `npx` on your PATH (the Claude Code plugin runs its
+  hooks with `node`). Running your own hub needs Node 22.13 or newer.
+- **A git repository** for the project. Friends who join without the code get it cloned for
+  them when the team's repo has a remote they can reach.
+- **Claude Code, Codex or Cursor.** Mix them freely within a team.
+
 ## Commands
+
+In Claude Code with the plugin:
+
+```
+/openhuddle:create [--name "Team"] [--as you]    start a team in this project
+/openhuddle:join <invite-link>                   join one
+/openhuddle:status                               what the team is doing right now
+```
+
+From any terminal:
 
 ```
 npx openhuddle create [--name "Team"] [--as you]   start a team in this repo
@@ -167,7 +186,39 @@ npx openhuddle leave                              leave and remove openhuddle fr
 npx openhuddle hub [--port 8787]                  run your own hub
 ```
 
-Requires Node 20 or newer (the hub needs Node 22.13 or newer).
+### Updating
+
+- **Plugin:** `claude plugin update openhuddle@openhuddle` in a terminal (or `/plugin` →
+  Marketplaces → update inside Claude Code), then restart Claude Code.
+- **npx setups:** run `npx openhuddle@latest doctor --fix` in the project. It refreshes the copy
+  in `~/.openhuddle/app` that the hooks and tools use. When your team's hub runs a newer version,
+  your agent tells you so.
+
+### Uninstall
+
+- In each project: `npx openhuddle leave` (leaves the team and removes only what OpenHuddle added:
+  hooks, MCP entries, the git hook, `.openhuddle/`).
+- Plugin: `/plugin uninstall openhuddle`.
+- Then delete `~/.openhuddle` if you like.
+
+### Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| Your agent doesn't mention teammates | Run `npx openhuddle doctor`. With `--fix` it repairs the wiring. In Claude Code, start a new session after fixing. |
+| "Can't reach the hub" | Check your connection, then `curl <hub>/health`. Hooks give up after 3 seconds, so your work is never blocked. |
+| "This membership is no longer valid" | You were removed or left. Ask a teammate for a fresh invite (`npx openhuddle invite`). |
+| Invite link "not valid anymore" | Links expire after 7 days. Any member can print a fresh one with `npx openhuddle invite`. |
+| Plugin hooks fail with "node: command not found" | Install Node 20+ and make sure `node` is on the PATH Claude Code sees. |
+| An edit was paused "held by a teammate" | That's the guard working. Ask them (`team_ask`), wait for the claim to expire, or have the owner set `claim_mode` to `warn`. |
+
+## The public hub
+
+`npx openhuddle create` uses the free public hub at https://92-5-77-35.sslip.io unless you pass
+`--hub`. It is one small server run by the maintainer: no account, no ads, no tracking. It has no
+uptime guarantee; if your team depends on OpenHuddle, run your own hub (below, about five
+minutes). What it stores and for how long is listed under
+[Security and privacy](#security-and-privacy).
 
 ## Run your own hub
 
@@ -203,7 +254,8 @@ npx openhuddle create --hub https://team.example.com
 
 Invite links carry the hub address, so friends just run `join` with the link.
 
-Try the dashboard without friends: `node scripts/demo.mjs` starts a local hub with a demo team.
+Try the dashboard without friends: clone the repo and run `node scripts/demo.mjs`. It starts a
+local hub with a demo team and prints the dashboard link.
 
 ## Security and privacy
 
@@ -240,6 +292,15 @@ board.
 **Can my agent go wild with this?** The tools only read and write team coordination data. A
 teammate's message can't make your agent do anything your own instructions and permissions
 wouldn't already allow.
+
+**How is this different from Claude Code's agent teams?** Agent teams run several agents for
+one person on one machine. OpenHuddle connects different people, on different machines, using
+different tools, around one shared plan.
+
+**Can I use it solo with several agents?** Yes. Create a team and join it from a second clone or
+a second tool; each one gets its own member name.
+
+**Is it on the MCP Registry?** Yes, as `io.github.nika110/openhuddle`.
 
 ## Contributing
 

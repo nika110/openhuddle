@@ -1,3 +1,7 @@
+> **Historical note:** this is the original design/plan from the first day (when the project was
+> still called vibecrew). The README, CHANGELOG and code are the source of truth for how
+> OpenHuddle works today.
+
 # OpenHuddle — design
 
 **One line:** multiplayer mode for AI coding agents. A few friends, each with their own
