@@ -228,6 +228,26 @@ test('cli: real mcp server answers over stdio and exits when stdin closes', asyn
   assert.ok(sync.content[0].text.includes('alice'));
 });
 
+test('cli: remove is owner only', async () => {
+  const code = decodeURIComponent(new URL(invite).pathname.split('/join/')[1]);
+  await fetch(`${hub.url}/api/join`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ code, member_name: 'dave' }),
+  });
+  const asMember = capture(repoB);
+  assert.equal(await main(['remove', 'dave'], asMember), 1);
+  assert.match(asMember.stderr, /owner/i);
+  const asOwner = capture(repoA);
+  assert.equal(await main(['remove', 'dave'], asOwner), 0, asOwner.stderr);
+  assert.match(asOwner.stdout, /dave/);
+  const st = capture(repoA);
+  await main(['status'], st);
+  assert.ok(!/dave/.test(st.stdout), st.stdout);
+  const usage = capture(repoA);
+  assert.equal(await main(['remove'], usage), 1);
+});
+
 test('cli: leave unwires and removes config', async () => {
   const io = capture(repoB);
   assert.equal(await main(['leave'], io), 0, io.stderr);

@@ -28,8 +28,8 @@ reaching another agent. These are the rules the code follows:
   which is excluded from git. The hub stores only a hash of it.
 - **The invite link is the key.** Anyone with a valid invite link can join your team, see
   its activity and send messages to its agents. Links expire after 7 days. The owner can
-  reset the link (`vibecrew invite --rotate`) and remove members from the dashboard or by
-  asking their agent.
+  reset the link (`npx vibecrew invite --rotate`) and remove a member
+  (`npx vibecrew remove <name>`). Everyone sees a notice when someone joins.
 
 ## What the hub can see
 

@@ -30,6 +30,7 @@ Other commands:
   watch             live crew feed in this terminal
   dash              open the live dashboard in your browser
   invite [--rotate] show the invite link (owner can --rotate it)
+  remove <name>     remove a teammate from the crew (owner only)
   doctor [--fix]    check the setup (and repair it)
   leave             leave the crew and remove vibecrew from this project
   hub               run your own hub (--port, --db, --public-url, --trust-proxy)
@@ -407,6 +408,20 @@ const COMMANDS = {
     if (w.cursor !== null) mark(w.cursor, 'Cursor MCP entry', 'run `npx vibecrew doctor --fix`');
     mark(w.git_hook, 'git post-commit hook', 'run `npx vibecrew doctor --fix`');
     return ok ? 0 : 1;
+  },
+
+  async remove(ctx, flags, args) {
+    const project = needProject(ctx, flags);
+    if (!project) return 1;
+    const who = args.join(' ').trim();
+    if (!who) {
+      ctx.err('Usage: npx vibecrew remove <teammate name>   (crew owner only)');
+      return 1;
+    }
+    await apiOf(project).post('/api/members/remove', { member: who });
+    ctx.out(`Removed ${who} from the crew. Their agent can no longer read or post.`);
+    ctx.out('If they still have the invite link, reset it: npx vibecrew invite --rotate');
+    return 0;
   },
 
   async leave(ctx, flags) {
